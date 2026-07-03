@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import CustomTable from '../../common/CustomTable';
-import AddEdit from './Pages/AddEdit';
+import CustomTable from '../../../common/CustomTable';
+import AddEdit from './AddEdit';
 import { getAllContainers, getSuppliers } from '../Services';
-import { getGroupIDFromToken } from '../../common/tokenDecoder';
-import { getAllItems } from '../Items/Services';
+import { getGroupIDFromToken } from '../../../common/tokenDecoder';
+import { getAllItems } from '../../Items/Services';
 
 export default function Listing() {
     const [containers, setContainers] = useState([]);

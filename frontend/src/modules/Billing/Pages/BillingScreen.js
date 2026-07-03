@@ -98,14 +98,21 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [resumeInvoiceId, customers.length]);
 
-    // Debounced item search (FR-POS-01)
+    // Debounced item search (FR-POS-01). Guarded against out-of-order network
+    // responses: if you type quickly, an earlier request can occasionally
+    // resolve AFTER a later one - without this check, its stale results
+    // would silently overwrite the correct, more current ones.
+    const searchRequestIdRef = useRef(0);
+
     useEffect(() => {
         if (!itemSearchTerm || itemSearchTerm.length < 1) {
             setItemOptions([]);
             return;
         }
         const handle = setTimeout(async () => {
+            const requestId = ++searchRequestIdRef.current;
             const res = await searchItemsForBilling(groupId, itemSearchTerm);
+            if (requestId !== searchRequestIdRef.current) return; // a newer search has since started - discard this one
             if (res?.status) setItemOptions(res.data ?? []);
         }, 250);
         return () => clearTimeout(handle);

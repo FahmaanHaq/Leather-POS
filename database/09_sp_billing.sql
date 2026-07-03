@@ -99,11 +99,12 @@ BEGIN
     FROM Inventory.Items i
     JOIN Inventory.UOM u ON u.UOMID = i.BaseUOMID
     WHERE i.GroupID = @GroupID AND i.IsActive = 1
-      AND (i.ItemCode LIKE @SearchTerm + '%' OR i.ItemName LIKE '%' + @SearchTerm + '%' OR i.Barcode = @SearchTerm)
+      AND (i.ItemCode LIKE '%' + @SearchTerm + '%' OR i.ItemName LIKE '%' + @SearchTerm + '%' OR i.Barcode = @SearchTerm)
     ORDER BY
         CASE WHEN i.Barcode = @SearchTerm THEN 0
              WHEN i.ItemCode LIKE @SearchTerm + '%' THEN 1
-             ELSE 2 END,
+             WHEN i.ItemName LIKE @SearchTerm + '%' THEN 2
+             ELSE 3 END,
         i.ItemName;
 END
 GO

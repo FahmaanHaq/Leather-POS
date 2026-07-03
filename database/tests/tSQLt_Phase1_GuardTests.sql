@@ -76,7 +76,7 @@ GO
 CREATE OR ALTER PROCEDURE Test_Customers.[test SaveCustomer allows credit terms for regular customer]
 AS
 BEGIN
-    EXEC tSQLt.FakeTable 'Sales.Customers';
+    EXEC tSQLt.FakeTable 'Sales.Customers', @Identity = 1;
 
     DECLARE @Result INT;
     EXEC Sales.SaveCustomer @GroupID = 1, @CustomerType = 1, @Name = 'Regular Co',

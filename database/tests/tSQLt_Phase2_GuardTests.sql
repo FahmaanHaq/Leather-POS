@@ -14,7 +14,7 @@ GO
 CREATE OR ALTER PROCEDURE Test_Billing.[test SaveInvoice rejects mismatched payment total]
 AS
 BEGIN
-    EXEC tSQLt.FakeTable 'Sales.Invoices';
+    EXEC tSQLt.FakeTable 'Sales.Invoices', @Identity = 1;
     EXEC tSQLt.FakeTable 'Sales.InvoiceLines';
     EXEC tSQLt.FakeTable 'Sales.Payments';
     EXEC tSQLt.FakeTable 'Sales.ChequeDetails';
@@ -44,7 +44,7 @@ GO
 CREATE OR ALTER PROCEDURE Test_Billing.[test SaveInvoice rejects insufficient stock]
 AS
 BEGIN
-    EXEC tSQLt.FakeTable 'Sales.Invoices';
+    EXEC tSQLt.FakeTable 'Sales.Invoices', @Identity = 1;
     EXEC tSQLt.FakeTable 'Sales.InvoiceLines';
     EXEC tSQLt.FakeTable 'Sales.Payments';
     EXEC tSQLt.FakeTable 'Inventory.StockLedger';
@@ -99,7 +99,7 @@ GO
 CREATE OR ALTER PROCEDURE Test_Billing.[test SaveInvoice holds a bill without touching stock]
 AS
 BEGIN
-    EXEC tSQLt.FakeTable 'Sales.Invoices';
+    EXEC tSQLt.FakeTable 'Sales.Invoices', @Identity = 1;
     EXEC tSQLt.FakeTable 'Sales.InvoiceLines';
     EXEC tSQLt.FakeTable 'Sales.Payments';
     EXEC tSQLt.FakeTable 'Inventory.StockLedger';

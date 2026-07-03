@@ -160,6 +160,56 @@ BEGIN
         RETURN;
     END
 
+    -- All remaining guards are pure reads with no side effects, so they run
+    -- BEFORE any transaction opens. A guard failure must never issue a bare
+    -- ROLLBACK TRANSACTION, since that rolls back to the OUTERMOST open
+    -- transaction (including one opened by a caller, e.g. tSQLt's own test
+    -- wrapper) - not just this procedure's own work.
+    DECLARE @PaymentTotal DECIMAL(18,2) = 0, @CreditPortion DECIMAL(18,2) = 0;
+
+    IF @IsHeld = 0
+    BEGIN
+        SET @PaymentTotal = ISNULL((SELECT SUM(Amount) FROM @Payments), 0);
+        IF ABS(@PaymentTotal - @TotalAmount) > 0.01
+        BEGIN
+            SET @Result = -1;
+            RETURN;
+        END
+
+        -- Stock availability guard (FR-ITM-07 / prevents overselling)
+        IF EXISTS (
+            SELECT 1
+            FROM @Lines l
+            CROSS APPLY (
+                SELECT ISNULL(SUM(CASE WHEN TransactionType = 1 THEN Quantity
+                                        WHEN TransactionType = 2 THEN -Quantity
+                                        ELSE Quantity END), 0) AS OnHand
+                FROM Inventory.StockLedger sl WHERE sl.ItemID = l.ItemID
+            ) stock
+            WHERE stock.OnHand < l.Quantity
+        )
+        BEGIN
+            SET @Result = -2;
+            RETURN;
+        END
+
+        -- Credit limit guard (only the Credit-mode portion of this sale counts)
+        SET @CreditPortion = ISNULL((SELECT SUM(Amount) FROM @Payments WHERE PaymentMode = 4), 0);
+        IF @CreditPortion > 0
+        BEGIN
+            DECLARE @CreditLimit DECIMAL(18,2) = (SELECT CreditLimit FROM Sales.Customers WHERE CustomerID = @CustomerID);
+            DECLARE @CurrentBalance DECIMAL(18,2) = ISNULL((
+                SELECT TOP 1 Balance FROM Sales.CustomerLedger WHERE CustomerID = @CustomerID ORDER BY LedgerID DESC
+            ), 0);
+
+            IF @CreditLimit IS NOT NULL AND (@CurrentBalance + @CreditPortion) > @CreditLimit
+            BEGIN
+                SET @Result = -3;
+                RETURN;
+            END
+        END
+    END
+
     BEGIN TRANSACTION;
 
     BEGIN TRY
@@ -193,49 +243,8 @@ BEGIN
         END
 
         -- ===================== Completing the sale =====================
-
-        DECLARE @PaymentTotal DECIMAL(18,2) = ISNULL((SELECT SUM(Amount) FROM @Payments), 0);
-        IF ABS(@PaymentTotal - @TotalAmount) > 0.01
-        BEGIN
-            ROLLBACK TRANSACTION;
-            SET @Result = -1;
-            RETURN;
-        END
-
-        -- Stock availability guard (FR-ITM-07 / prevents overselling)
-        IF EXISTS (
-            SELECT 1
-            FROM @Lines l
-            CROSS APPLY (
-                SELECT ISNULL(SUM(CASE WHEN TransactionType = 1 THEN Quantity
-                                        WHEN TransactionType = 2 THEN -Quantity
-                                        ELSE Quantity END), 0) AS OnHand
-                FROM Inventory.StockLedger sl WHERE sl.ItemID = l.ItemID
-            ) stock
-            WHERE stock.OnHand < l.Quantity
-        )
-        BEGIN
-            ROLLBACK TRANSACTION;
-            SET @Result = -2;
-            RETURN;
-        END
-
-        -- Credit limit guard (only the Credit-mode portion of this sale counts)
-        DECLARE @CreditPortion DECIMAL(18,2) = ISNULL((SELECT SUM(Amount) FROM @Payments WHERE PaymentMode = 4), 0);
-        IF @CreditPortion > 0
-        BEGIN
-            DECLARE @CreditLimit DECIMAL(18,2) = (SELECT CreditLimit FROM Sales.Customers WHERE CustomerID = @CustomerID);
-            DECLARE @CurrentBalance DECIMAL(18,2) = ISNULL((
-                SELECT TOP 1 Balance FROM Sales.CustomerLedger WHERE CustomerID = @CustomerID ORDER BY LedgerID DESC
-            ), 0);
-
-            IF @CreditLimit IS NOT NULL AND (@CurrentBalance + @CreditPortion) > @CreditLimit
-            BEGIN
-                ROLLBACK TRANSACTION;
-                SET @Result = -3;
-                RETURN;
-            END
-        END
+        -- All guards already passed above; @PaymentTotal and @CreditPortion
+        -- were already computed there too.
 
         DECLARE @InvoiceNo NVARCHAR(50);
         EXEC Sales.GetNextInvoiceNumber @GroupID = @GroupID, @InvoiceDate = @InvoiceDate, @InvoiceNo = @InvoiceNo OUTPUT;

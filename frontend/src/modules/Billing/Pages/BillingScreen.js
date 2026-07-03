@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
@@ -15,6 +15,8 @@ import TableCell from '@mui/material/TableCell';
 import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
+import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import PauseCircleOutlinedIcon from '@mui/icons-material/PauseCircleOutlined';
 import PaymentOutlinedIcon from '@mui/icons-material/PaymentOutlined';
@@ -27,6 +29,15 @@ import { searchItemsForBilling, saveInvoice, getInvoiceById } from '../Services'
 import { getAllCustomers } from '../../Customers/Services';
 import { getGroupIDFromToken, getUserIDFromToken } from '../../../common/tokenDecoder';
 
+// Keyboard shortcuts, shown to the cashier and wired up below. Kept as one
+// list so the on-screen legend and the actual key-handling never drift apart.
+const SHORTCUTS = [
+    { key: 'Enter', label: 'Add scanned/typed item to the bill' },
+    { key: 'F8', label: 'Hold Bill' },
+    { key: 'F9', label: 'Pay & Complete' },
+    { key: 'Esc', label: 'Clear the item search box' },
+];
+
 export default function BillingScreen({ resumeInvoiceId, onDone }) {
     const groupId = getGroupIDFromToken();
     const userId = getUserIDFromToken();
@@ -36,6 +47,7 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
 
     const [itemSearchTerm, setItemSearchTerm] = useState('');
     const [itemOptions, setItemOptions] = useState([]);
+    const searchInputRef = useRef(null);
 
     const [lines, setLines] = useState([]);
     const [invoiceID, setInvoiceID] = useState(null);
@@ -43,6 +55,7 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
 
     const [showPaymentPanel, setShowPaymentPanel] = useState(false);
     const [showDebtSettlement, setShowDebtSettlement] = useState(false);
+    const [showShortcuts, setShowShortcuts] = useState(false);
     const [message, setMessage] = useState(null);
     const [isBusy, setIsBusy] = useState(false);
 
@@ -90,6 +103,20 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
         return () => clearTimeout(handle);
     }, [itemSearchTerm, groupId]);
 
+    // Focus the search box on first load and any time it's the sensible next
+    // action (after adding a line, after closing a modal) - a cashier should
+    // almost never need to click into it manually.
+    const focusSearch = () => {
+        // Slight delay lets MUI finish its own focus management first
+        // (e.g. after a Dialog closes or an Autocomplete option commits).
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+    };
+
+    useEffect(() => {
+        focusSearch();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const addLine = (item) => {
         if (!item) return;
         setLines((prev) => [
@@ -107,7 +134,47 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
         ]);
         setItemSearchTerm('');
         setItemOptions([]);
+        focusSearch();
     };
+
+    // Enter (or a barcode scanner's trailing Enter) picks the best match
+    // immediately, without needing to open/navigate the dropdown with a mouse:
+    // exact barcode match first, then exact code match, then top result.
+    const handleSearchKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            setItemSearchTerm('');
+            setItemOptions([]);
+            return;
+        }
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        if (itemOptions.length === 0) return;
+
+        const term = itemSearchTerm.trim();
+        const best =
+            itemOptions.find((o) => o.barcode === term) ??
+            itemOptions.find((o) => o.itemCode.toLowerCase() === term.toLowerCase()) ??
+            itemOptions[0];
+
+        addLine(best);
+    };
+
+    // Global shortcuts: F8 Hold, F9 Pay & Complete - work from anywhere on
+    // the screen, not just while focused in the search box.
+    useEffect(() => {
+        const handleGlobalKeyDown = (e) => {
+            if (e.key === 'F8') {
+                e.preventDefault();
+                if (lines.length > 0 && !isBusy) handleHold();
+            } else if (e.key === 'F9') {
+                e.preventDefault();
+                if (lines.length > 0 && !isBusy) setShowPaymentPanel(true);
+            }
+        };
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lines, isBusy]);
 
     const updateLine = (index, field, value) => {
         setLines((prev) => prev.map((line, i) => (i === index ? { ...line, [field]: value } : line)));
@@ -171,6 +238,7 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
             setSelectedCustomer(null);
             setInvoiceID(null);
             onDone?.();
+            focusSearch();
         } else {
             setMessage({ severity: 'error', text: response?.message ?? 'Unable to complete the sale.' });
         }
@@ -181,8 +249,28 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
         <Box>
             <PageHeader
                 title={invoiceID ? `Billing - Resuming Bill #${invoiceID}` : 'Billing'}
-                subtitle="Search items, build the bill, then hold or complete the sale"
+                subtitle="Scan or type an item code, press Enter to add it - no mouse needed"
+                actions={
+                    <Tooltip title="Keyboard shortcuts">
+                        <IconButton onClick={() => setShowShortcuts((s) => !s)}>
+                            <KeyboardOutlinedIcon />
+                        </IconButton>
+                    </Tooltip>
+                }
             />
+
+            {showShortcuts && (
+                <Alert severity="info" icon={<KeyboardOutlinedIcon fontSize="inherit" />} sx={{ mb: 2 }} onClose={() => setShowShortcuts(false)}>
+                    <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                        {SHORTCUTS.map((s) => (
+                            <Box key={s.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                <Chip label={s.key} size="small" sx={{ fontWeight: 600, fontFamily: 'monospace' }} />
+                                <Typography variant="body2">{s.label}</Typography>
+                            </Box>
+                        ))}
+                    </Box>
+                </Alert>
+            )}
 
             {message && (
                 <Alert severity={message.severity} sx={{ mb: 2 }} onClose={() => setMessage(null)}>
@@ -200,8 +288,15 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                             onInputChange={(_, value) => setItemSearchTerm(value)}
                             onChange={(_, value) => addLine(value)}
                             filterOptions={(x) => x} // server already filters
+                            openOnFocus={false}
                             renderInput={(params) => (
-                                <TextField {...params} label="Search item by code, name, or barcode" autoFocus />
+                                <TextField
+                                    {...params}
+                                    inputRef={searchInputRef}
+                                    label="Scan barcode or type item code / name, then press Enter"
+                                    autoFocus
+                                    onKeyDown={handleSearchKeyDown}
+                                />
                             )}
                             renderOption={(props, option) => (
                                 <li {...props} key={option.itemID}>
@@ -233,7 +328,7 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                                 {lines.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                                            No items added yet. Search above to start the bill.
+                                            No items added yet. Scan or type a code above, then press Enter.
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -247,6 +342,7 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                                                 value={line.quantity}
                                                 inputProps={{ step: 0.001, style: { textAlign: 'right' } }}
                                                 onChange={(e) => updateLine(index, 'quantity', e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); focusSearch(); } }}
                                                 sx={{ width: 90 }}
                                             />
                                         </TableCell>
@@ -258,6 +354,7 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                                                 value={line.unitPrice}
                                                 inputProps={{ step: 0.01, style: { textAlign: 'right' } }}
                                                 onChange={(e) => updateLine(index, 'unitPrice', e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); focusSearch(); } }}
                                                 sx={{ width: 100 }}
                                             />
                                         </TableCell>
@@ -268,6 +365,7 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                                                 value={line.discount}
                                                 inputProps={{ step: 0.01, style: { textAlign: 'right' } }}
                                                 onChange={(e) => updateLine(index, 'discount', e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); focusSearch(); } }}
                                                 sx={{ width: 90 }}
                                             />
                                         </TableCell>
@@ -291,7 +389,7 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                             options={customers}
                             getOptionLabel={(c) => `${c.name}${c.phone ? ' - ' + c.phone : ''}`}
                             value={selectedCustomer}
-                            onChange={(_, value) => setSelectedCustomer(value)}
+                            onChange={(_, value) => { setSelectedCustomer(value); focusSearch(); }}
                             renderInput={(params) => <TextField {...params} label="Search by name or phone" size="small" />}
                             isOptionEqualToValue={(o, v) => o.customerID === v.customerID}
                         />
@@ -357,7 +455,7 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                                 disabled={lines.length === 0 || isBusy}
                                 onClick={() => setShowPaymentPanel(true)}
                             >
-                                Pay &amp; Complete
+                                Pay &amp; Complete (F9)
                             </Button>
                             <Button
                                 variant="outlined"
@@ -365,7 +463,7 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                                 disabled={lines.length === 0 || isBusy}
                                 onClick={handleHold}
                             >
-                                Hold Bill
+                                Hold Bill (F8)
                             </Button>
                         </Box>
                     </Paper>
@@ -376,7 +474,7 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                 <PaymentPanel
                     totalAmount={totalAmount}
                     customer={selectedCustomer}
-                    onClose={() => setShowPaymentPanel(false)}
+                    onClose={() => { setShowPaymentPanel(false); focusSearch(); }}
                     onSubmit={handleCompleteSale}
                 />
             )}
@@ -384,10 +482,11 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
             {showDebtSettlement && selectedCustomer && (
                 <DebtSettlement
                     customer={selectedCustomer}
-                    onClose={() => setShowDebtSettlement(false)}
+                    onClose={() => { setShowDebtSettlement(false); focusSearch(); }}
                     onSaved={() => {
                         setShowDebtSettlement(false);
                         setMessage({ severity: 'success', text: 'Debt settlement recorded.' });
+                        focusSearch();
                     }}
                 />
             )}

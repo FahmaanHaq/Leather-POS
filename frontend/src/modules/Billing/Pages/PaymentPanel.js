@@ -85,8 +85,19 @@ export default function PaymentPanel({ totalAmount, customer, onClose, onSubmit 
         }
     };
 
+    const handleKeyDown = (e) => {
+        // Enter submits from anywhere in the panel, matching the rest of the
+        // keyboard-first Billing flow - except inside a multiline field,
+        // which none of these are, so this is always safe here.
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSubmit();
+        }
+    };
+
     return (
         <Modal title="Complete Sale - Payment" onClose={onClose} maxWidth="md">
+            <Box onKeyDown={handleKeyDown}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body2" color="text.secondary">Total Due</Typography>
                 <Typography variant="subtitle1" fontWeight={600}>{totalAmount.toFixed(2)}</Typography>
@@ -192,9 +203,10 @@ export default function PaymentPanel({ totalAmount, customer, onClose, onSubmit 
             <DialogActions sx={{ px: 0 }}>
                 <Button onClick={onClose} color="inherit">Cancel</Button>
                 <Button variant="contained" onClick={handleSubmit} disabled={isSubmitting}>
-                    Complete Sale
+                    Complete Sale (Enter)
                 </Button>
             </DialogActions>
+            </Box>
         </Modal>
     );
 }

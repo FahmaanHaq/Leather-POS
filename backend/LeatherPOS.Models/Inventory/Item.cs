@@ -67,6 +67,13 @@ namespace LeatherPOS.Models.Inventory
         public bool IsValid => string.IsNullOrEmpty(ErrorMessage);
     }
 
+    public class ItemImportBatchResult
+    {
+        public List<ItemImportRowResult> Rows { get; set; } = new();
+        public int ValidCount { get; set; }
+        public int ErrorCount { get; set; }
+    }
+
     public class UOM
     {
         public int UOMID { get; set; }

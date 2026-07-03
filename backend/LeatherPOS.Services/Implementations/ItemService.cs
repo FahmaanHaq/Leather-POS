@@ -94,7 +94,7 @@ namespace LeatherPOS.Services.Implementations
             var result = await _unitOfWork.Repository().GetEntitiesBySPWithTableValuedParameterAsync<ItemImportRowResult>(
                 "Inventory.ValidateItemImportBatch", "@Rows", "Inventory.ItemImportRowType", table, scalarParameters);
 
-            return LeatherPOSResponse.Success(new
+            return LeatherPOSResponse.Success(new ItemImportBatchResult
             {
                 Rows = result,
                 ValidCount = result.Count(r => r.IsValid),

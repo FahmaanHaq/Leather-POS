@@ -56,9 +56,10 @@ namespace LeatherPOS.UnitTests.Services
             var response = await _sut.ValidateImportBatchAsync(1, rows);
 
             response.Status.Should().BeTrue();
-            dynamic data = response.Data!;
-            ((int)data.ValidCount).Should().Be(1);
-            ((int)data.ErrorCount).Should().Be(1);
+            var data = response.Data as ItemImportBatchResult;
+            data.Should().NotBeNull();
+            data!.ValidCount.Should().Be(1);
+            data.ErrorCount.Should().Be(1);
         }
     }
 }

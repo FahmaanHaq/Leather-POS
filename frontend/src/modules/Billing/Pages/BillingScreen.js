@@ -7,6 +7,9 @@ import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
 import Table from '@mui/material/Table';
 import TableHead from '@mui/material/TableHead';
 import TableBody from '@mui/material/TableBody';
@@ -21,6 +24,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import PauseCircleOutlinedIcon from '@mui/icons-material/PauseCircleOutlined';
 import PaymentOutlinedIcon from '@mui/icons-material/PaymentOutlined';
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 
 import PageHeader from '../../../common/PageHeader';
 import PaymentPanel from './PaymentPanel';
@@ -29,8 +33,6 @@ import { searchItemsForBilling, saveInvoice, getInvoiceById, getCustomerItemLast
 import { getAllCustomers } from '../../Customers/Services';
 import { getGroupIDFromToken, getUserIDFromToken } from '../../../common/tokenDecoder';
 
-// Keyboard shortcuts, shown to the cashier and wired up below. Kept as one
-// list so the on-screen legend and the actual key-handling never drift apart.
 const SHORTCUTS = [
     { key: 'Enter', label: 'Add scanned/typed item to the bill' },
     { key: 'F8', label: 'Hold Bill' },
@@ -44,6 +46,11 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
 
     const [customers, setCustomers] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
+
+    // Sequence: the cashier must pick a customer (or explicitly choose
+    // Walk-in) before item scanning even appears. This also guarantees the
+    // customer-price-history lookup always has a customer to check against.
+    const [customerConfirmed, setCustomerConfirmed] = useState(false);
 
     const [itemSearchTerm, setItemSearchTerm] = useState('');
     const [itemOptions, setItemOptions] = useState([]);
@@ -59,16 +66,17 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
     const [message, setMessage] = useState(null);
     const [isBusy, setIsBusy] = useState(false);
 
-    // Load customer list once (FR-POS-02: lookup by name/phone with inline debt display)
     useEffect(() => {
         getAllCustomers(groupId).then((res) => {
             if (res?.status) setCustomers(res.data ?? []);
         });
     }, [groupId]);
 
-    // Resuming a held bill: reload its lines and customer
+    // Resuming a held bill: the customer decision was already made when it
+    // was held, so skip straight past the customer-selection step.
     useEffect(() => {
         if (!resumeInvoiceId) return;
+        setCustomerConfirmed(true);
         (async () => {
             const res = await getInvoiceById(resumeInvoiceId);
             if (!res?.status) return;
@@ -103,25 +111,17 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
         return () => clearTimeout(handle);
     }, [itemSearchTerm, groupId]);
 
-    // Focus the search box on first load and any time it's the sensible next
-    // action (after adding a line, after closing a modal) - a cashier should
-    // almost never need to click into it manually.
     const focusSearch = () => {
-        // Slight delay lets MUI finish its own focus management first
-        // (e.g. after a Dialog closes or an Autocomplete option commits).
         setTimeout(() => searchInputRef.current?.focus(), 50);
     };
 
     useEffect(() => {
-        focusSearch();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        if (customerConfirmed) focusSearch();
+    }, [customerConfirmed]);
 
     const addLine = async (item) => {
         if (!item) return;
 
-        // Clear the search box immediately so rapid scanning never feels
-        // blocked while the price-history lookup (if any) is in flight.
         setItemSearchTerm('');
         setItemOptions([]);
 
@@ -129,10 +129,6 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
         let discount = 0;
         let priceSource = null;
 
-        // Not in the original SRS: if this customer has bought this exact
-        // item before, default to what they actually paid last time rather
-        // than the catalogue price. Applies to any identified customer
-        // (Regular or Walk-in looked up by phone), not just credit accounts.
         if (selectedCustomer) {
             const priceRes = await getCustomerItemLastPrice(selectedCustomer.customerID, item.itemID);
             if (priceRes?.status && priceRes.data) {
@@ -153,15 +149,15 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                 unitPrice,
                 discount,
                 onHandQuantity: item.onHandQuantity,
-                priceSource, // set only when a customer's prior price was applied
+                priceSource,
             },
         ]);
         focusSearch();
     };
 
-    // Enter (or a barcode scanner's trailing Enter) picks the best match
-    // immediately, without needing to open/navigate the dropdown with a mouse:
-    // exact barcode match first, then exact code match, then top result.
+    // Single source of truth for "Enter adds the item" - no competing
+    // library-internal keyboard handling involved, since this is a plain
+    // TextField with a manually-rendered results list, not an Autocomplete.
     const handleSearchKeyDown = (e) => {
         if (e.key === 'Escape') {
             setItemSearchTerm('');
@@ -181,8 +177,6 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
         addLine(best);
     };
 
-    // Global shortcuts: F8 Hold, F9 Pay & Complete - work from anywhere on
-    // the screen, not just while focused in the search box.
     useEffect(() => {
         const handleGlobalKeyDown = (e) => {
             if (e.key === 'F8') {
@@ -259,14 +253,76 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
             setLines([]);
             setSelectedCustomer(null);
             setInvoiceID(null);
+            setCustomerConfirmed(false);
             onDone?.();
-            focusSearch();
         } else {
             setMessage({ severity: 'error', text: response?.message ?? 'Unable to complete the sale.' });
         }
         return response;
     };
 
+    const handleChangeCustomer = () => {
+        setCustomerConfirmed(false);
+        if (lines.length > 0) {
+            setMessage({
+                severity: 'info',
+                text: 'Changing the customer will not re-price items already on the bill - remove and re-add them if you need the new customer\'s pricing applied.',
+            });
+        }
+    };
+
+    // ===================== Step 1: who is this sale for? =====================
+    if (!customerConfirmed) {
+        return (
+            <Box sx={{ maxWidth: 520, mx: 'auto', mt: 6 }}>
+                <PageHeader title="Billing" subtitle="Who is this sale for?" />
+                <Paper variant="outlined" sx={{ p: 3 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Customer</Typography>
+                    <Autocomplete
+                        options={customers}
+                        getOptionLabel={(c) => `${c.name}${c.phone ? ' - ' + c.phone : ''}`}
+                        value={selectedCustomer}
+                        onChange={(_, value) => setSelectedCustomer(value)}
+                        renderInput={(params) => <TextField {...params} label="Search by name or phone" autoFocus />}
+                        isOptionEqualToValue={(o, v) => o.customerID === v.customerID}
+                    />
+
+                    {selectedCustomer?.customerType === 1 && (
+                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2" color="text.secondary">Outstanding Balance</Typography>
+                            <Typography
+                                variant="body2"
+                                sx={{ color: selectedCustomer.outstandingBalance > 0 ? '#B3261E' : 'inherit', fontWeight: 600 }}
+                            >
+                                {Number(selectedCustomer.outstandingBalance ?? 0).toFixed(2)}
+                            </Typography>
+                        </Box>
+                    )}
+
+                    <Box sx={{ display: 'flex', gap: 1.5, mt: 3 }}>
+                        <Button
+                            variant="outlined"
+                            fullWidth
+                            onClick={() => { setSelectedCustomer(null); setCustomerConfirmed(true); }}
+                        >
+                            Walk-in Sale (no customer)
+                        </Button>
+                        <Button
+                            variant="contained"
+                            fullWidth
+                            startIcon={<PersonOutlineOutlinedIcon />}
+                            disabled={!selectedCustomer}
+                            onClick={() => setCustomerConfirmed(true)}
+                        >
+                            Continue
+                        </Button>
+                    </Box>
+                </Paper>
+            </Box>
+        );
+    }
+
+    // ===================== Step 2: build and complete the bill =====================
     return (
         <Box>
             <PageHeader
@@ -280,6 +336,17 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                     </Tooltip>
                 }
             />
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Tooltip title="Click the x to change customer">
+                    <Chip
+                        icon={<PersonOutlineOutlinedIcon />}
+                        label={selectedCustomer ? selectedCustomer.name : 'Walk-in Sale'}
+                        onDelete={handleChangeCustomer}
+                        variant="outlined"
+                    />
+                </Tooltip>
+            </Box>
 
             {showShortcuts && (
                 <Alert severity="info" icon={<KeyboardOutlinedIcon fontSize="inherit" />} sx={{ mb: 2 }} onClose={() => setShowShortcuts(false)}>
@@ -302,35 +369,47 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
 
             <Grid container spacing={2}>
                 <Grid item xs={12} md={8}>
-                    <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                        <Autocomplete
-                            options={itemOptions}
-                            getOptionLabel={(o) => `${o.itemCode} - ${o.itemName}`}
-                            inputValue={itemSearchTerm}
-                            onInputChange={(_, value) => setItemSearchTerm(value)}
-                            onChange={(_, value) => addLine(value)}
-                            filterOptions={(x) => x} // server already filters
-                            openOnFocus={false}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    inputRef={searchInputRef}
-                                    label="Scan barcode or type item code / name, then press Enter"
-                                    autoFocus
-                                    onKeyDown={handleSearchKeyDown}
-                                />
-                            )}
-                            renderOption={(props, option) => (
-                                <li {...props} key={option.itemID}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                        <span>{option.itemCode} - {option.itemName}</span>
-                                        <span style={{ color: option.onHandQuantity <= 0 ? '#B3261E' : 'inherit' }}>
-                                            {option.onHandQuantity} {option.uomCode} on hand
-                                        </span>
-                                    </Box>
-                                </li>
-                            )}
+                    <Paper variant="outlined" sx={{ p: 2, mb: 2, position: 'relative' }}>
+                        <TextField
+                            fullWidth
+                            inputRef={searchInputRef}
+                            label="Scan barcode or type item code / name, then press Enter"
+                            value={itemSearchTerm}
+                            onChange={(e) => setItemSearchTerm(e.target.value)}
+                            onKeyDown={handleSearchKeyDown}
+                            autoComplete="off"
+                            autoFocus
                         />
+
+                        {itemOptions.length > 0 && (
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    position: 'absolute',
+                                    zIndex: 10,
+                                    left: 16,
+                                    right: 16,
+                                    mt: 0.5,
+                                    maxHeight: 320,
+                                    overflow: 'auto',
+                                }}
+                            >
+                                <List dense disablePadding>
+                                    {itemOptions.map((option, idx) => (
+                                        <ListItemButton key={option.itemID} onClick={() => addLine(option)} selected={idx === 0}>
+                                            <ListItemText
+                                                primary={`${option.itemCode} - ${option.itemName}`}
+                                                secondary={
+                                                    <span style={{ color: option.onHandQuantity <= 0 ? '#B3261E' : 'inherit' }}>
+                                                        {option.onHandQuantity} {option.uomCode} on hand
+                                                    </span>
+                                                }
+                                            />
+                                        </ListItemButton>
+                                    ))}
+                                </List>
+                            </Paper>
+                        )}
                     </Paper>
 
                     <Paper variant="outlined">
@@ -418,55 +497,43 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                 </Grid>
 
                 <Grid item xs={12} md={4}>
-                    <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>Customer</Typography>
-                        <Autocomplete
-                            options={customers}
-                            getOptionLabel={(c) => `${c.name}${c.phone ? ' - ' + c.phone : ''}`}
-                            value={selectedCustomer}
-                            onChange={(_, value) => { setSelectedCustomer(value); focusSearch(); }}
-                            renderInput={(params) => <TextField {...params} label="Search by name or phone" size="small" />}
-                            isOptionEqualToValue={(o, v) => o.customerID === v.customerID}
-                        />
-
-                        {selectedCustomer && (
-                            <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <Typography variant="body2" color="text.secondary">Type</Typography>
-                                    <Chip
-                                        label={selectedCustomer.customerType === 1 ? 'Regular' : 'Walk-in'}
-                                        size="small"
-                                        variant="outlined"
-                                    />
-                                </Box>
-                                {selectedCustomer.customerType === 1 && (
-                                    <>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <Typography variant="body2" color="text.secondary">Credit Limit</Typography>
-                                            <Typography variant="body2">{Number(selectedCustomer.creditLimit ?? 0).toFixed(2)}</Typography>
-                                        </Box>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <Typography variant="body2" color="text.secondary">Outstanding Balance</Typography>
-                                            <Typography
-                                                variant="body2"
-                                                sx={{ color: selectedCustomer.outstandingBalance > 0 ? '#B3261E' : 'inherit', fontWeight: 600 }}
-                                            >
-                                                {Number(selectedCustomer.outstandingBalance ?? 0).toFixed(2)}
-                                            </Typography>
-                                        </Box>
-                                        <Button
-                                            size="small"
-                                            startIcon={<AccountBalanceWalletOutlinedIcon fontSize="small" />}
-                                            onClick={() => setShowDebtSettlement(true)}
-                                            sx={{ alignSelf: 'flex-start', mt: 1 }}
-                                        >
-                                            Settle Debt
-                                        </Button>
-                                    </>
-                                )}
+                    {selectedCustomer && (
+                        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body2" color="text.secondary">Type</Typography>
+                                <Chip
+                                    label={selectedCustomer.customerType === 1 ? 'Regular' : 'Walk-in'}
+                                    size="small"
+                                    variant="outlined"
+                                />
                             </Box>
-                        )}
-                    </Paper>
+                            {selectedCustomer.customerType === 1 && (
+                                <>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                                        <Typography variant="body2" color="text.secondary">Credit Limit</Typography>
+                                        <Typography variant="body2">{Number(selectedCustomer.creditLimit ?? 0).toFixed(2)}</Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                                        <Typography variant="body2" color="text.secondary">Outstanding Balance</Typography>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{ color: selectedCustomer.outstandingBalance > 0 ? '#B3261E' : 'inherit', fontWeight: 600 }}
+                                        >
+                                            {Number(selectedCustomer.outstandingBalance ?? 0).toFixed(2)}
+                                        </Typography>
+                                    </Box>
+                                    <Button
+                                        size="small"
+                                        startIcon={<AccountBalanceWalletOutlinedIcon fontSize="small" />}
+                                        onClick={() => setShowDebtSettlement(true)}
+                                        sx={{ mt: 1 }}
+                                    >
+                                        Settle Debt
+                                    </Button>
+                                </>
+                            )}
+                        </Paper>
+                    )}
 
                     <Paper variant="outlined" sx={{ p: 2 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>

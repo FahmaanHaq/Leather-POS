@@ -27,7 +27,8 @@ describe('Customers AddEdit form', () => {
         render(<AddEdit customer={null} groupId={1} onClose={jest.fn()} onSaved={jest.fn()} />);
 
         await userEvent.type(screen.getByLabelText(/^name/i), 'Walk-in Guy');
-        await userEvent.selectOptions(screen.getByLabelText(/customer type/i), '2');
+        await userEvent.click(screen.getByLabelText(/customer type/i));
+        await userEvent.click(await screen.findByRole('option', { name: /walk-in/i }));
 
         // Credit limit / days fields should not even render for walk-in customers
         expect(screen.queryByLabelText(/credit limit/i)).not.toBeInTheDocument();

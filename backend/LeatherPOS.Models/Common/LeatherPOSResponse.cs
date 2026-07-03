@@ -18,4 +18,8 @@ namespace LeatherPOS.Models.Common
         public static LeatherPOSResponse Fail(string message)
             => new LeatherPOSResponse { Status = false, Message = message, Data = null };
     }
+
+    /// <summary>Placeholder generic argument for GetThreeResultSetsBySPAsync when an
+    /// SP only returns two result sets - the third list is simply never populated.</summary>
+    public class EmptyResultSet { }
 }

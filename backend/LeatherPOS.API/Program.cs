@@ -42,6 +42,8 @@ builder.Services.AddScoped<IContainerService, ContainerService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 // JWT auth - Issuer/Audience/Key come from App Service Application settings
 // (Jwt__Issuer, Jwt__Audience, Jwt__Key), never hardcoded.

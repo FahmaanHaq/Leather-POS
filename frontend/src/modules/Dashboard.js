@@ -3,15 +3,19 @@ import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import PointOfSaleOutlinedIcon from '@mui/icons-material/PointOfSaleOutlined';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
+import RequestQuoteOutlinedIcon from '@mui/icons-material/RequestQuoteOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 
 const CARDS = [
+  { label: 'Billing', icon: PointOfSaleOutlinedIcon, tab: 'billing', hint: 'Point of sale, hold/resume, returns' },
   { label: 'Customers', icon: PeopleAltOutlinedIcon, tab: 'customers', hint: 'Manage accounts & credit terms' },
   { label: 'Items', icon: Inventory2OutlinedIcon, tab: 'items', hint: 'Stock, pricing & UOM' },
   { label: 'Containers', icon: LocalShippingOutlinedIcon, tab: 'containers', hint: 'Stock intake (GRN)' },
+  { label: 'Cheque Register', icon: RequestQuoteOutlinedIcon, tab: 'chequeregister', hint: 'Due-date cheque tracking' },
   { label: 'Users & Roles', icon: BadgeOutlinedIcon, tab: 'users', hint: 'Access & permissions' },
 ];
 
@@ -20,12 +24,12 @@ export default function Dashboard({ onNavigate }) {
     <Box>
       <Typography variant="h5" gutterBottom>Welcome back</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Phase 1 modules are ready. Pick a module below or from the sidebar.
+        Pick a module below or from the tabs above.
       </Typography>
 
       <Grid container spacing={2}>
         {CARDS.map(({ label, icon: Icon, tab, hint }) => (
-          <Grid item xs={12} sm={6} md={3} key={tab}>
+          <Grid item xs={12} sm={6} md={4} key={tab}>
             <Paper
               variant="outlined"
               onClick={() => onNavigate(tab)}

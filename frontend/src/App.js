@@ -13,6 +13,10 @@ import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettin
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import CorporateFareOutlinedIcon from '@mui/icons-material/CorporateFareOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import PointOfSaleOutlinedIcon from '@mui/icons-material/PointOfSaleOutlined';
+import RequestQuoteOutlinedIcon from '@mui/icons-material/RequestQuoteOutlined';
+import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
+import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined';
 
 import Dashboard from './modules/Dashboard';
 import Login from './modules/Auth/Login';
@@ -24,15 +28,23 @@ import ContainersListing from './modules/Containers/Pages/Listing';
 import GroupsListing from './modules/Security/Groups/Pages/Listing';
 import PermissionsListing from './modules/Security/Permissions/Pages/Listing';
 import ActivityLogListing from './modules/Security/ActivityLog/Pages/Listing';
+import BillingListing from './modules/Billing/Pages/Listing';
+import ChequeRegisterListing from './modules/Payments/ChequeRegister/Pages/Listing';
+import CashRegisterListing from './modules/Payments/CashRegister/Pages/Listing';
+import CardSettlementListing from './modules/Payments/CardSettlement/Pages/Listing';
 import { isAuthenticated, logout, getUsernameFromToken, getUserIDFromToken } from './common/tokenDecoder';
 import { getEffectivePermissions } from './modules/Security/Permissions/Services';
 
-// RouteKey must match Security.Screens.RouteKey seeded in 07_gap_closure.sql
+// RouteKey must match Security.Screens.RouteKey seeded in 07_gap_closure.sql / 11_phase2_screens.sql
 const NAV = [
   { key: 'dashboard', routeKey: 'dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon, Component: Dashboard },
+  { key: 'billing', routeKey: 'billing', label: 'Billing', icon: PointOfSaleOutlinedIcon, Component: BillingListing },
   { key: 'customers', routeKey: 'customers', label: 'Customers', icon: PeopleAltOutlinedIcon, Component: CustomersListing },
   { key: 'items', routeKey: 'items', label: 'Items', icon: Inventory2OutlinedIcon, Component: ItemsListing },
   { key: 'containers', routeKey: 'containers', label: 'Containers', icon: LocalShippingOutlinedIcon, Component: ContainersListing },
+  { key: 'chequeregister', routeKey: 'chequeregister', label: 'Cheque Register', icon: RequestQuoteOutlinedIcon, Component: ChequeRegisterListing },
+  { key: 'cashregister', routeKey: 'cashregister', label: 'Cash Register', icon: PaidOutlinedIcon, Component: CashRegisterListing },
+  { key: 'cardsettlement', routeKey: 'cardsettlement', label: 'Card Settlement', icon: CreditCardOutlinedIcon, Component: CardSettlementListing },
   { key: 'users', routeKey: 'users', label: 'Users', icon: BadgeOutlinedIcon, Component: UsersListing },
   { key: 'roles', routeKey: 'roles', label: 'Roles', icon: AdminPanelSettingsOutlinedIcon, Component: RolesListing },
   { key: 'permissions', routeKey: 'permissions', label: 'Permissions', icon: LockOutlinedIcon, Component: PermissionsListing },

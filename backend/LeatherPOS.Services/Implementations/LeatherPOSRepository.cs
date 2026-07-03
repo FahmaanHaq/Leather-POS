@@ -101,8 +101,61 @@ namespace LeatherPOS.Services.Implementations
             return results;
         }
 
+        public async Task<Dictionary<string, object>> ExecuteSPWithMultipleTableValuedParametersAsync(
+            string spName,
+            Dictionary<string, (string TypeName, DataTable Data)> tvpParameters,
+            Dictionary<string, Tuple<string, DbType, ParameterDirection>> scalarParameters)
+        {
+            await using var connection = new SqlConnection(_connectionString);
+            await using var command = new SqlCommand(spName, connection) { CommandType = CommandType.StoredProcedure };
+            AddParameters(command, scalarParameters);
+
+            foreach (var (parameterName, (typeName, data)) in tvpParameters)
+                AddTableValuedParameter(command, parameterName, typeName, data);
+
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+
+            return ExtractOutputValues(command, scalarParameters);
+        }
+
+        public async Task<(List<T1> Set1, List<T2> Set2, List<T3> Set3)> GetThreeResultSetsBySPAsync<T1, T2, T3>(
+            string spName,
+            Dictionary<string, Tuple<string, DbType, ParameterDirection>> parameters)
+            where T1 : new() where T2 : new() where T3 : new()
+        {
+            var set1 = new List<T1>();
+            var set2 = new List<T2>();
+            var set3 = new List<T3>();
+
+            await using var connection = new SqlConnection(_connectionString);
+            await using var command = new SqlCommand(spName, connection) { CommandType = CommandType.StoredProcedure };
+            AddParameters(command, parameters);
+
+            await connection.OpenAsync();
+            await using var reader = await command.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+                set1.Add(MapReaderToObject<T1>(reader));
+
+            if (await reader.NextResultAsync())
+            {
+                while (await reader.ReadAsync())
+                    set2.Add(MapReaderToObject<T2>(reader));
+            }
+
+            if (await reader.NextResultAsync())
+            {
+                while (await reader.ReadAsync())
+                    set3.Add(MapReaderToObject<T3>(reader));
+            }
+
+            return (set1, set2, set3);
+        }
+
         private static void AddParameters(SqlCommand command, Dictionary<string, Tuple<string, DbType, ParameterDirection>> parameters)
         {
+
             foreach (var (name, (value, dbType, direction)) in parameters)
             {
                 var parameter = command.Parameters.Add(name, ToSqlDbType(dbType));
@@ -146,6 +199,7 @@ namespace LeatherPOS.Services.Implementations
             DbType.Decimal => SqlDbType.Decimal,
             DbType.Boolean => SqlDbType.Bit,
             DbType.DateTime => SqlDbType.DateTime,
+            DbType.Date => SqlDbType.Date,
             DbType.Byte => SqlDbType.TinyInt,
             DbType.Int64 => SqlDbType.BigInt,
             _ => SqlDbType.NVarChar
@@ -158,6 +212,7 @@ namespace LeatherPOS.Services.Implementations
             DbType.Decimal => decimal.Parse(value),
             DbType.Boolean => bool.Parse(value),
             DbType.DateTime => DateTime.Parse(value),
+            DbType.Date => DateTime.Parse(value),
             DbType.Byte => byte.Parse(value),
             _ => value
         };

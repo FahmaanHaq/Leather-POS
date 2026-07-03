@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import Button from '@mui/material/Button';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import CustomTable from '../../../common/CustomTable';
+import PageHeader from '../../../common/PageHeader';
 import AddEdit from './AddEdit';
 import { getAllContainers, getSuppliers } from '../Services';
 import { getGroupIDFromToken } from '../../../common/tokenDecoder';
@@ -38,13 +41,21 @@ export default function Listing() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <h2>Containers / Stock Intake (GRN)</h2>
-                <button onClick={() => setShowAddEdit(true)}>+ Receive New Container</button>
-            </div>
+            <PageHeader
+                title="Containers / Stock Intake"
+                subtitle="Goods received notes (GRN) - records are immutable once posted"
+                actions={
+                    <Button
+                        variant="contained"
+                        startIcon={<AddOutlinedIcon />}
+                        onClick={() => setShowAddEdit(true)}
+                    >
+                        Receive Container
+                    </Button>
+                }
+            />
 
-            {/* GRN records are immutable once posted - no edit action, only view/new (FR-ITM-05) */}
-            <CustomTable data={containers} columns={columns} isLoading={isLoading} onEdit={() => {}} onToggleActive={() => {}} />
+            <CustomTable data={containers} columns={columns} isLoading={isLoading} hideActions />
 
             {showAddEdit && (
                 <AddEdit

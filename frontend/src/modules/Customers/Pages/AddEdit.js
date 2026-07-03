@@ -1,11 +1,17 @@
 import React from 'react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
+import Button from '@mui/material/Button';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import DialogActions from '@mui/material/DialogActions';
+import Modal from '../../../common/Modal';
 import { saveCustomer, updateCustomer } from '../Services';
 import { getUserIDFromToken } from '../../../common/tokenDecoder';
 
-// FR-CUS-01/02/05: Regular customers may optionally carry credit terms;
-// Walk-in customers must not.
 const validationSchema = Yup.object({
     customerType: Yup.number().oneOf([1, 2]).required('Customer type is required'),
     name: Yup.string().trim().required('Name is required').max(150),
@@ -45,9 +51,6 @@ export default function AddEdit({ customer, groupId, onClose, onSaved }) {
 
     const handleSubmit = async (values, { setSubmitting, setStatus }) => {
         const userId = getUserIDFromToken();
-
-        // Walk-in customers never carry credit terms, even if the field was
-        // populated before switching CustomerType in the form.
         const creditLimit = values.customerType === 2 ? null : (values.creditLimit === '' ? null : values.creditLimit);
         const creditDays = values.customerType === 2 ? null : (values.creditDays === '' ? null : values.creditDays);
 
@@ -57,8 +60,7 @@ export default function AddEdit({ customer, groupId, onClose, onSaved }) {
                   name: values.name,
                   phone: values.phone || null,
                   address: values.address || null,
-                  creditLimit,
-                  creditDays,
+                  creditLimit, creditDays,
                   isActive: values.isActive,
                   modifiedBy: userId,
               })
@@ -68,92 +70,112 @@ export default function AddEdit({ customer, groupId, onClose, onSaved }) {
                   name: values.name,
                   phone: values.phone || null,
                   address: values.address || null,
-                  creditLimit,
-                  creditDays,
+                  creditLimit, creditDays,
                   createdBy: userId,
               });
 
         setSubmitting(false);
-
-        if (response?.status) {
-            onSaved?.();
-        } else {
-            setStatus(response?.message ?? 'Something went wrong while saving the customer.');
-        }
+        if (response?.status) onSaved?.();
+        else setStatus(response?.message ?? 'Something went wrong while saving the customer.');
     };
 
     return (
-        <div className="modal">
-            <h3>{isEdit ? 'Edit Customer' : 'New Customer'}</h3>
+        <Modal title={isEdit ? 'Edit Customer' : 'New Customer'} onClose={onClose}>
             <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>
                 {({ values, errors, touched, handleChange, handleBlur, isSubmitting, status }) => (
                     <Form>
-                        {status && <div className="form-error">{status}</div>}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {status && <Alert severity="error">{status}</Alert>}
 
-                        <label>
-                            Customer Type
-                            <select name="customerType" value={values.customerType} onChange={handleChange} disabled={isEdit}>
-                                <option value={1}>Regular (Credit-allowed)</option>
-                                <option value={2}>Walk-in</option>
-                            </select>
-                        </label>
+                            <TextField
+                                select
+                                label="Customer Type"
+                                name="customerType"
+                                value={values.customerType}
+                                onChange={handleChange}
+                                disabled={isEdit}
+                                fullWidth
+                            >
+                                <MenuItem value={1}>Regular (Credit-allowed)</MenuItem>
+                                <MenuItem value={2}>Walk-in</MenuItem>
+                            </TextField>
 
-                        <label>
-                            Name
-                            <input name="name" value={values.name} onChange={handleChange} onBlur={handleBlur} />
-                            {touched.name && errors.name && <span className="field-error">{errors.name}</span>}
-                        </label>
+                            <TextField
+                                label="Name"
+                                name="name"
+                                value={values.name}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                error={touched.name && !!errors.name}
+                                helperText={touched.name && errors.name}
+                                fullWidth
+                            />
 
-                        <label>
-                            Phone
-                            <input name="phone" value={values.phone} onChange={handleChange} onBlur={handleBlur} />
-                            {touched.phone && errors.phone && <span className="field-error">{errors.phone}</span>}
-                        </label>
-
-                        <label>
-                            Address
-                            <input name="address" value={values.address} onChange={handleChange} onBlur={handleBlur} />
-                        </label>
-
-                        {values.customerType === 1 && (
-                            <>
-                                <label>
-                                    Credit Limit
-                                    <input
-                                        type="number"
-                                        name="creditLimit"
-                                        value={values.creditLimit}
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Phone"
+                                        name="phone"
+                                        value={values.phone}
                                         onChange={handleChange}
                                         onBlur={handleBlur}
+                                        error={touched.phone && !!errors.phone}
+                                        helperText={touched.phone && errors.phone}
+                                        fullWidth
                                     />
-                                    {touched.creditLimit && errors.creditLimit && (
-                                        <span className="field-error">{errors.creditLimit}</span>
-                                    )}
-                                </label>
-
-                                <label>
-                                    Credit Days
-                                    <input
-                                        type="number"
-                                        name="creditDays"
-                                        value={values.creditDays}
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Address"
+                                        name="address"
+                                        value={values.address}
                                         onChange={handleChange}
-                                        onBlur={handleBlur}
+                                        fullWidth
                                     />
-                                    {touched.creditDays && errors.creditDays && (
-                                        <span className="field-error">{errors.creditDays}</span>
-                                    )}
-                                </label>
-                            </>
-                        )}
+                                </Grid>
+                            </Grid>
 
-                        <div className="modal-actions">
-                            <button type="button" onClick={onClose}>Cancel</button>
-                            <button type="submit" disabled={isSubmitting}>{isEdit ? 'Update' : 'Save'}</button>
-                        </div>
+                            {values.customerType === 1 && (
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            type="number"
+                                            label="Credit Limit"
+                                            name="creditLimit"
+                                            value={values.creditLimit}
+                                            onChange={handleChange}
+                                            onBlur={handleBlur}
+                                            error={touched.creditLimit && !!errors.creditLimit}
+                                            helperText={touched.creditLimit && errors.creditLimit}
+                                            fullWidth
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            type="number"
+                                            label="Credit Days"
+                                            name="creditDays"
+                                            value={values.creditDays}
+                                            onChange={handleChange}
+                                            onBlur={handleBlur}
+                                            error={touched.creditDays && !!errors.creditDays}
+                                            helperText={touched.creditDays && errors.creditDays}
+                                            fullWidth
+                                        />
+                                    </Grid>
+                                </Grid>
+                            )}
+                        </Box>
+
+                        <DialogActions sx={{ px: 0, pt: 3 }}>
+                            <Button onClick={onClose} color="inherit">Cancel</Button>
+                            <Button type="submit" variant="contained" disabled={isSubmitting}>
+                                {isEdit ? 'Update' : 'Save'}
+                            </Button>
+                        </DialogActions>
                     </Form>
                 )}
             </Formik>
-        </div>
+        </Modal>
     );
 }

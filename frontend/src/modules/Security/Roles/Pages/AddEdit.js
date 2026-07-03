@@ -1,6 +1,12 @@
 import React from 'react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import DialogActions from '@mui/material/DialogActions';
+import Modal from '../../../../common/Modal';
 import { saveRole, updateRole } from '../Services';
 import { getUserIDFromToken } from '../../../../common/tokenDecoder';
 
@@ -20,7 +26,6 @@ export default function AddEdit({ role, groupId, onClose, onSaved }) {
 
     const handleSubmit = async (values, { setSubmitting, setStatus }) => {
         const userId = getUserIDFromToken();
-
         const response = isEdit
             ? await updateRole({
                   roleID: role.roleID,
@@ -42,31 +47,44 @@ export default function AddEdit({ role, groupId, onClose, onSaved }) {
     };
 
     return (
-        <div className="modal">
-            <h3>{isEdit ? 'Edit Role' : 'New Role'}</h3>
+        <Modal title={isEdit ? 'Edit Role' : 'New Role'} onClose={onClose}>
             <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>
                 {({ values, errors, touched, handleChange, handleBlur, isSubmitting, status }) => (
                     <Form>
-                        {status && <div className="form-error">{status}</div>}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {status && <Alert severity="error">{status}</Alert>}
 
-                        <label>
-                            Role Name
-                            <input name="roleName" value={values.roleName} onChange={handleChange} onBlur={handleBlur} />
-                            {touched.roleName && errors.roleName && <span className="field-error">{errors.roleName}</span>}
-                        </label>
+                            <TextField
+                                label="Role Name"
+                                name="roleName"
+                                value={values.roleName}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                error={touched.roleName && !!errors.roleName}
+                                helperText={touched.roleName && errors.roleName}
+                                fullWidth
+                            />
 
-                        <label>
-                            Description
-                            <input name="description" value={values.description} onChange={handleChange} onBlur={handleBlur} />
-                        </label>
+                            <TextField
+                                label="Description"
+                                name="description"
+                                value={values.description}
+                                onChange={handleChange}
+                                fullWidth
+                                multiline
+                                minRows={2}
+                            />
+                        </Box>
 
-                        <div className="modal-actions">
-                            <button type="button" onClick={onClose}>Cancel</button>
-                            <button type="submit" disabled={isSubmitting}>{isEdit ? 'Update' : 'Save'}</button>
-                        </div>
+                        <DialogActions sx={{ px: 0, pt: 3 }}>
+                            <Button onClick={onClose} color="inherit">Cancel</Button>
+                            <Button type="submit" variant="contained" disabled={isSubmitting}>
+                                {isEdit ? 'Update' : 'Save'}
+                            </Button>
+                        </DialogActions>
                     </Form>
                 )}
             </Formik>
-        </div>
+        </Modal>
     );
 }

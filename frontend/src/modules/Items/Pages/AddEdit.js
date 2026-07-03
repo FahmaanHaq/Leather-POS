@@ -1,11 +1,17 @@
 import React from 'react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
+import Button from '@mui/material/Button';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import DialogActions from '@mui/material/DialogActions';
+import Modal from '../../../common/Modal';
 import { saveItem, updateItem } from '../Services';
 import { getUserIDFromToken } from '../../../common/tokenDecoder';
 
-// FR-ITM-01/03/04: prices are DECIMAL(18,2), quantities/reorder levels DECIMAL(18,3)
-// to correctly support fractional UOM sales (e.g. 2.5 m of hide).
 const decimalPlaces = (max) => (value) => {
     if (value === undefined || value === null || value === '') return true;
     const str = value.toString();
@@ -20,14 +26,14 @@ const validationSchema = Yup.object({
     costPrice: Yup.number()
         .required('Cost price is required')
         .min(0, 'Cost price cannot be negative')
-        .test('decimal-places', 'Cost price supports up to 2 decimal places', decimalPlaces(2)),
+        .test('decimal-places', 'Up to 2 decimal places', decimalPlaces(2)),
     sellingPrice: Yup.number()
         .required('Selling price is required')
         .min(0, 'Selling price cannot be negative')
-        .test('decimal-places', 'Selling price supports up to 2 decimal places', decimalPlaces(2)),
+        .test('decimal-places', 'Up to 2 decimal places', decimalPlaces(2)),
     reorderLevel: Yup.number()
         .min(0, 'Reorder level cannot be negative')
-        .test('decimal-places', 'Reorder level supports up to 3 decimal places', decimalPlaces(3)),
+        .test('decimal-places', 'Up to 3 decimal places', decimalPlaces(3)),
 });
 
 export default function AddEdit({ item, groupId, uomList, onClose, onSaved }) {
@@ -47,7 +53,6 @@ export default function AddEdit({ item, groupId, uomList, onClose, onSaved }) {
 
     const handleSubmit = async (values, { setSubmitting, setStatus }) => {
         const userId = getUserIDFromToken();
-
         const response = isEdit
             ? await updateItem({
                   itemID: item.itemID,
@@ -79,60 +84,112 @@ export default function AddEdit({ item, groupId, uomList, onClose, onSaved }) {
     };
 
     return (
-        <div className="modal">
-            <h3>{isEdit ? 'Edit Item' : 'New Item'}</h3>
+        <Modal title={isEdit ? 'Edit Item' : 'New Item'} onClose={onClose}>
             <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>
                 {({ values, errors, touched, handleChange, handleBlur, isSubmitting, status }) => (
                     <Form>
-                        {status && <div className="form-error">{status}</div>}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {status && <Alert severity="error">{status}</Alert>}
 
-                        <label>
-                            Item Code
-                            <input name="itemCode" value={values.itemCode} onChange={handleChange} onBlur={handleBlur} disabled={isEdit} />
-                            {touched.itemCode && errors.itemCode && <span className="field-error">{errors.itemCode}</span>}
-                        </label>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Item Code"
+                                        name="itemCode"
+                                        value={values.itemCode}
+                                        onChange={handleChange}
+                                        onBlur={handleBlur}
+                                        disabled={isEdit}
+                                        error={touched.itemCode && !!errors.itemCode}
+                                        helperText={touched.itemCode && errors.itemCode}
+                                        fullWidth
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        select
+                                        label="Unit of Measurement"
+                                        name="baseUOMID"
+                                        value={values.baseUOMID}
+                                        onChange={handleChange}
+                                        disabled={isEdit}
+                                        error={touched.baseUOMID && !!errors.baseUOMID}
+                                        helperText={touched.baseUOMID && errors.baseUOMID}
+                                        fullWidth
+                                    >
+                                        {(uomList ?? []).map((u) => (
+                                            <MenuItem key={u.uomid} value={u.uomid}>{u.uomname} ({u.uomcode})</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                            </Grid>
 
-                        <label>
-                            Item Name
-                            <input name="itemName" value={values.itemName} onChange={handleChange} onBlur={handleBlur} />
-                            {touched.itemName && errors.itemName && <span className="field-error">{errors.itemName}</span>}
-                        </label>
+                            <TextField
+                                label="Item Name"
+                                name="itemName"
+                                value={values.itemName}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                error={touched.itemName && !!errors.itemName}
+                                helperText={touched.itemName && errors.itemName}
+                                fullWidth
+                            />
 
-                        <label>
-                            Unit of Measurement
-                            <select name="baseUOMID" value={values.baseUOMID} onChange={handleChange} disabled={isEdit}>
-                                {(uomList ?? []).map((u) => (
-                                    <option key={u.uomid} value={u.uomid}>{u.uomname} ({u.uomcode})</option>
-                                ))}
-                            </select>
-                            {touched.baseUOMID && errors.baseUOMID && <span className="field-error">{errors.baseUOMID}</span>}
-                        </label>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={4}>
+                                    <TextField
+                                        type="number"
+                                        label="Cost Price"
+                                        name="costPrice"
+                                        inputProps={{ step: 0.01 }}
+                                        value={values.costPrice}
+                                        onChange={handleChange}
+                                        onBlur={handleBlur}
+                                        error={touched.costPrice && !!errors.costPrice}
+                                        helperText={touched.costPrice && errors.costPrice}
+                                        fullWidth
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                    <TextField
+                                        type="number"
+                                        label="Selling Price"
+                                        name="sellingPrice"
+                                        inputProps={{ step: 0.01 }}
+                                        value={values.sellingPrice}
+                                        onChange={handleChange}
+                                        onBlur={handleBlur}
+                                        error={touched.sellingPrice && !!errors.sellingPrice}
+                                        helperText={touched.sellingPrice && errors.sellingPrice}
+                                        fullWidth
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                    <TextField
+                                        type="number"
+                                        label="Reorder Level"
+                                        name="reorderLevel"
+                                        inputProps={{ step: 0.001 }}
+                                        value={values.reorderLevel}
+                                        onChange={handleChange}
+                                        onBlur={handleBlur}
+                                        error={touched.reorderLevel && !!errors.reorderLevel}
+                                        helperText={touched.reorderLevel && errors.reorderLevel}
+                                        fullWidth
+                                    />
+                                </Grid>
+                            </Grid>
+                        </Box>
 
-                        <label>
-                            Cost Price
-                            <input type="number" step="0.01" name="costPrice" value={values.costPrice} onChange={handleChange} onBlur={handleBlur} />
-                            {touched.costPrice && errors.costPrice && <span className="field-error">{errors.costPrice}</span>}
-                        </label>
-
-                        <label>
-                            Selling Price
-                            <input type="number" step="0.01" name="sellingPrice" value={values.sellingPrice} onChange={handleChange} onBlur={handleBlur} />
-                            {touched.sellingPrice && errors.sellingPrice && <span className="field-error">{errors.sellingPrice}</span>}
-                        </label>
-
-                        <label>
-                            Reorder Level
-                            <input type="number" step="0.001" name="reorderLevel" value={values.reorderLevel} onChange={handleChange} onBlur={handleBlur} />
-                            {touched.reorderLevel && errors.reorderLevel && <span className="field-error">{errors.reorderLevel}</span>}
-                        </label>
-
-                        <div className="modal-actions">
-                            <button type="button" onClick={onClose}>Cancel</button>
-                            <button type="submit" disabled={isSubmitting}>{isEdit ? 'Update' : 'Save'}</button>
-                        </div>
+                        <DialogActions sx={{ px: 0, pt: 3 }}>
+                            <Button onClick={onClose} color="inherit">Cancel</Button>
+                            <Button type="submit" variant="contained" disabled={isSubmitting}>
+                                {isEdit ? 'Update' : 'Save'}
+                            </Button>
+                        </DialogActions>
                     </Form>
                 )}
             </Formik>
-        </div>
+        </Modal>
     );
 }

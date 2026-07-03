@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import CustomTable from '../../../common/CustomTable';
+import PageHeader from '../../../common/PageHeader';
 import AddEdit from './AddEdit';
 import { getAllCustomers, updateCustomer } from '../Services';
-import { getGroupIDFromToken } from '../../../common/tokenDecoder';
+import { getGroupIDFromToken, getUserIDFromToken } from '../../../common/tokenDecoder';
 
 export default function Listing() {
     const [customers, setCustomers] = useState([]);
@@ -30,15 +34,25 @@ export default function Listing() {
         {
             accessorKey: 'customerType',
             header: 'Type',
-            Cell: ({ cell }) => (cell.getValue() === 1 ? 'Regular' : 'Walk-in'),
+            Cell: ({ cell }) => (
+                <Chip
+                    label={cell.getValue() === 1 ? 'Regular' : 'Walk-in'}
+                    size="small"
+                    color={cell.getValue() === 1 ? 'primary' : 'default'}
+                    variant="outlined"
+                />
+            ),
         },
-        { accessorKey: 'creditLimit', header: 'Credit Limit' },
+        {
+            accessorKey: 'creditLimit',
+            header: 'Credit Limit',
+            Cell: ({ cell }) => (cell.getValue() != null ? Number(cell.getValue()).toFixed(2) : '—'),
+        },
         {
             accessorKey: 'outstandingBalance',
             header: 'Outstanding Balance',
-            // FR-CUS-03: surfaced prominently, same field the Billing screen will read
             Cell: ({ cell }) => (
-                <span style={{ color: cell.getValue() > 0 ? '#b00020' : 'inherit', fontWeight: 600 }}>
+                <span style={{ color: cell.getValue() > 0 ? '#B3261E' : 'inherit', fontWeight: 600 }}>
                     {Number(cell.getValue() ?? 0).toFixed(2)}
                 </span>
             ),
@@ -46,18 +60,25 @@ export default function Listing() {
     ];
 
     const handleToggleActive = async (customer) => {
-        await updateCustomer({ ...customer, isActive: !customer.isActive, modifiedBy: getGroupIDFromToken() });
+        await updateCustomer({ ...customer, isActive: !customer.isActive, modifiedBy: getUserIDFromToken() });
         loadCustomers();
     };
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <h2>Customers</h2>
-                <button onClick={() => { setEditingCustomer(null); setShowAddEdit(true); }}>
-                    + New Customer
-                </button>
-            </div>
+            <PageHeader
+                title="Customers"
+                subtitle="Manage customer accounts, credit terms, and balances"
+                actions={
+                    <Button
+                        variant="contained"
+                        startIcon={<AddOutlinedIcon />}
+                        onClick={() => { setEditingCustomer(null); setShowAddEdit(true); }}
+                    >
+                        New Customer
+                    </Button>
+                }
+            />
 
             <CustomTable
                 data={customers}

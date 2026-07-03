@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import Button from '@mui/material/Button';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import CustomTable from '../../../../common/CustomTable';
+import PageHeader from '../../../../common/PageHeader';
 import AddEdit from './AddEdit';
 import { getAllRoles, updateRole } from '../Services';
 import { getGroupIDFromToken, getUserIDFromToken } from '../../../../common/tokenDecoder';
@@ -27,21 +30,26 @@ export default function Listing() {
     ];
 
     const handleToggleActive = async (role) => {
-        // FR-GRP/SEC guard: UpdateRole rejects deactivation while active users
-        // are assigned (@Result = -2) - surface that message if it comes back.
         const response = await updateRole({ ...role, isActive: !role.isActive, modifiedBy: getUserIDFromToken() });
-        if (!response?.status) {
-            alert(response?.message ?? 'Unable to update role.');
-        }
+        if (!response?.status) alert(response?.message ?? 'Unable to update role.');
         loadRoles();
     };
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <h2>Roles</h2>
-                <button onClick={() => { setEditingRole(null); setShowAddEdit(true); }}>+ New Role</button>
-            </div>
+            <PageHeader
+                title="Roles"
+                subtitle="Define role-based permission templates"
+                actions={
+                    <Button
+                        variant="contained"
+                        startIcon={<AddOutlinedIcon />}
+                        onClick={() => { setEditingRole(null); setShowAddEdit(true); }}
+                    >
+                        New Role
+                    </Button>
+                }
+            />
 
             <CustomTable
                 data={roles}

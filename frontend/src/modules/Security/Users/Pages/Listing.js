@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import CustomTable from '../../../../common/CustomTable';
+import PageHeader from '../../../../common/PageHeader';
 import AddEdit from './AddEdit';
 import { getAllUsers, updateUser } from '../Services';
 import { getAllRoles } from '../../Roles/Services';
@@ -30,7 +34,11 @@ export default function Listing() {
     const columns = [
         { accessorKey: 'username', header: 'Username' },
         { accessorKey: 'fullName', header: 'Full Name' },
-        { accessorKey: 'roleName', header: 'Role' },
+        {
+            accessorKey: 'roleName',
+            header: 'Role',
+            Cell: ({ cell }) => <Chip label={cell.getValue()} size="small" variant="outlined" />,
+        },
         { accessorKey: 'email', header: 'Email' },
     ];
 
@@ -41,10 +49,19 @@ export default function Listing() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <h2>Users</h2>
-                <button onClick={() => { setEditingUser(null); setShowAddEdit(true); }}>+ New User</button>
-            </div>
+            <PageHeader
+                title="Users"
+                subtitle="Manage user accounts and role assignments"
+                actions={
+                    <Button
+                        variant="contained"
+                        startIcon={<AddOutlinedIcon />}
+                        onClick={() => { setEditingUser(null); setShowAddEdit(true); }}
+                    >
+                        New User
+                    </Button>
+                }
+            />
 
             <CustomTable
                 data={users}

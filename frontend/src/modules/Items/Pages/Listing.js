@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import Button from '@mui/material/Button';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
+import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import CustomTable from '../../../common/CustomTable';
+import PageHeader from '../../../common/PageHeader';
 import AddEdit from './AddEdit';
 import BulkImport from './BulkImport';
 import { getAllItems, getAllUOM, updateItem } from '../Services';
@@ -29,16 +33,21 @@ export default function Listing() {
         { accessorKey: 'itemCode', header: 'Item Code' },
         { accessorKey: 'itemName', header: 'Item Name' },
         { accessorKey: 'uomCode', header: 'UOM' },
-        { accessorKey: 'sellingPrice', header: 'Selling Price' },
+        {
+            accessorKey: 'sellingPrice',
+            header: 'Selling Price',
+            Cell: ({ cell }) => Number(cell.getValue() ?? 0).toFixed(2),
+        },
         {
             accessorKey: 'onHandQuantity',
             header: 'On Hand',
-            // FR-ITM-08: highlight when on-hand drops to/below reorder level
             Cell: ({ row }) => {
                 const low = row.original.onHandQuantity <= row.original.reorderLevel;
-                return <span style={{ color: low ? '#b00020' : 'inherit', fontWeight: low ? 600 : 400 }}>
-                    {Number(row.original.onHandQuantity).toFixed(3)}
-                </span>;
+                return (
+                    <span style={{ color: low ? '#B3261E' : 'inherit', fontWeight: low ? 600 : 400 }}>
+                        {Number(row.original.onHandQuantity).toFixed(3)}
+                    </span>
+                );
             },
         },
     ];
@@ -50,13 +59,28 @@ export default function Listing() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <h2>Items</h2>
-                <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => setShowBulkImport(true)}>Bulk Import (Excel)</button>
-                    <button onClick={() => { setEditingItem(null); setShowAddEdit(true); }}>+ New Item</button>
-                </div>
-            </div>
+            <PageHeader
+                title="Items"
+                subtitle="Product catalogue, pricing, and stock levels"
+                actions={
+                    <>
+                        <Button
+                            variant="outlined"
+                            startIcon={<UploadFileOutlinedIcon />}
+                            onClick={() => setShowBulkImport(true)}
+                        >
+                            Bulk Import
+                        </Button>
+                        <Button
+                            variant="contained"
+                            startIcon={<AddOutlinedIcon />}
+                            onClick={() => { setEditingItem(null); setShowAddEdit(true); }}
+                        >
+                            New Item
+                        </Button>
+                    </>
+                }
+            />
 
             <CustomTable
                 data={items}

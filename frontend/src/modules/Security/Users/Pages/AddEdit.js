@@ -1,6 +1,14 @@
 import React from 'react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
+import Button from '@mui/material/Button';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import DialogActions from '@mui/material/DialogActions';
+import Modal from '../../../../common/Modal';
 import { saveUser, updateUser } from '../Services';
 import { getUserIDFromToken } from '../../../../common/tokenDecoder';
 
@@ -36,7 +44,6 @@ export default function AddEdit({ user, groupId, roles, onClose, onSaved }) {
 
     const handleSubmit = async (values, { setSubmitting, setStatus }) => {
         const modifierId = getUserIDFromToken();
-
         const response = isEdit
             ? await updateUser({
                   userID: user.userID,
@@ -62,8 +69,7 @@ export default function AddEdit({ user, groupId, roles, onClose, onSaved }) {
     };
 
     return (
-        <div className="modal">
-            <h3>{isEdit ? 'Edit User' : 'New User'}</h3>
+        <Modal title={isEdit ? 'Edit User' : 'New User'} onClose={onClose}>
             <Formik
                 initialValues={initialValues}
                 validationSchema={isEdit ? editSchema : createSchema}
@@ -71,63 +77,105 @@ export default function AddEdit({ user, groupId, roles, onClose, onSaved }) {
             >
                 {({ values, errors, touched, handleChange, handleBlur, isSubmitting, status }) => (
                     <Form>
-                        {status && <div className="form-error">{status}</div>}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {status && <Alert severity="error">{status}</Alert>}
 
-                        {!isEdit && (
-                            <label>
-                                Username
-                                <input name="username" value={values.username} onChange={handleChange} onBlur={handleBlur} />
-                                {touched.username && errors.username && <span className="field-error">{errors.username}</span>}
-                            </label>
-                        )}
+                            {!isEdit && (
+                                <TextField
+                                    label="Username"
+                                    name="username"
+                                    value={values.username}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    error={touched.username && !!errors.username}
+                                    helperText={touched.username && errors.username}
+                                    fullWidth
+                                />
+                            )}
 
-                        <label>
-                            Full Name
-                            <input name="fullName" value={values.fullName} onChange={handleChange} onBlur={handleBlur} />
-                            {touched.fullName && errors.fullName && <span className="field-error">{errors.fullName}</span>}
-                        </label>
+                            <TextField
+                                label="Full Name"
+                                name="fullName"
+                                value={values.fullName}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                error={touched.fullName && !!errors.fullName}
+                                helperText={touched.fullName && errors.fullName}
+                                fullWidth
+                            />
 
-                        <label>
-                            Email
-                            <input name="email" value={values.email} onChange={handleChange} onBlur={handleBlur} />
-                            {touched.email && errors.email && <span className="field-error">{errors.email}</span>}
-                        </label>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Email"
+                                        name="email"
+                                        value={values.email}
+                                        onChange={handleChange}
+                                        onBlur={handleBlur}
+                                        error={touched.email && !!errors.email}
+                                        helperText={touched.email && errors.email}
+                                        fullWidth
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        select
+                                        label="Role"
+                                        name="roleID"
+                                        value={values.roleID}
+                                        onChange={handleChange}
+                                        error={touched.roleID && !!errors.roleID}
+                                        helperText={touched.roleID && errors.roleID}
+                                        fullWidth
+                                    >
+                                        {(roles ?? []).map((r) => (
+                                            <MenuItem key={r.roleID} value={r.roleID}>{r.roleName}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                            </Grid>
 
-                        <label>
-                            Role
-                            <select name="roleID" value={values.roleID} onChange={handleChange}>
-                                {(roles ?? []).map((r) => (
-                                    <option key={r.roleID} value={r.roleID}>{r.roleName}</option>
-                                ))}
-                            </select>
-                            {touched.roleID && errors.roleID && <span className="field-error">{errors.roleID}</span>}
-                        </label>
+                            {!isEdit && (
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            type="password"
+                                            label="Password"
+                                            name="password"
+                                            value={values.password}
+                                            onChange={handleChange}
+                                            onBlur={handleBlur}
+                                            error={touched.password && !!errors.password}
+                                            helperText={touched.password && errors.password}
+                                            fullWidth
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            type="password"
+                                            label="Confirm Password"
+                                            name="confirmPassword"
+                                            value={values.confirmPassword}
+                                            onChange={handleChange}
+                                            onBlur={handleBlur}
+                                            error={touched.confirmPassword && !!errors.confirmPassword}
+                                            helperText={touched.confirmPassword && errors.confirmPassword}
+                                            fullWidth
+                                        />
+                                    </Grid>
+                                </Grid>
+                            )}
+                        </Box>
 
-                        {!isEdit && (
-                            <>
-                                <label>
-                                    Password
-                                    <input type="password" name="password" value={values.password} onChange={handleChange} onBlur={handleBlur} />
-                                    {touched.password && errors.password && <span className="field-error">{errors.password}</span>}
-                                </label>
-
-                                <label>
-                                    Confirm Password
-                                    <input type="password" name="confirmPassword" value={values.confirmPassword} onChange={handleChange} onBlur={handleBlur} />
-                                    {touched.confirmPassword && errors.confirmPassword && (
-                                        <span className="field-error">{errors.confirmPassword}</span>
-                                    )}
-                                </label>
-                            </>
-                        )}
-
-                        <div className="modal-actions">
-                            <button type="button" onClick={onClose}>Cancel</button>
-                            <button type="submit" disabled={isSubmitting}>{isEdit ? 'Update' : 'Save'}</button>
-                        </div>
+                        <DialogActions sx={{ px: 0, pt: 3 }}>
+                            <Button onClick={onClose} color="inherit">Cancel</Button>
+                            <Button type="submit" variant="contained" disabled={isSubmitting}>
+                                {isEdit ? 'Update' : 'Save'}
+                            </Button>
+                        </DialogActions>
                     </Form>
                 )}
             </Formik>
-        </div>
+        </Modal>
     );
 }

@@ -2,18 +2,20 @@ name: Database Tests (tSQLt)
 
 # This workflow expects tSQLt.class.sql and SetClrEnabled.sql to be committed
 # under database/tsqlt/ (download both from https://tsqlt.org/downloads/ and
-# drop them in that folder - not fetched automatically here, since a hardcoded
-# download URL in CI is a fragile, silent-failure-prone thing to guess at).
-# Until those files are added, this workflow will fail at the "Install tSQLt"
-# step with a clear "file not found" error rather than something confusing.
+# drop them in that folder). Until those files are added, this workflow will
+# fail at the "Install tSQLt" step with a clear file-not-found error.
+#
+# Also requires a repository secret CI_SQL_SA_PASSWORD (Settings > Secrets and
+# variables > Actions) - a strong password used only inside this disposable
+# CI container, unrelated to your real Azure SQL password.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'database/**'
-      - '.github/workflows/database-tests.yml'
   workflow_dispatch: {}
+# Auto-trigger on push disabled for now - this workflow needs manually-added
+# tSQLt install files (see database/tsqlt/README.md) plus a CI_SQL_SA_PASSWORD
+# secret before it can succeed, and it doesn't affect the live app either way
+# (that's azure-deploy.yml). Run it manually via Actions > Database Tests >
+# Run workflow once you're ready to finish the tSQLt setup.
 
 jobs:
   tsqlt:
@@ -24,14 +26,14 @@ jobs:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
           ACCEPT_EULA: 'Y'
-          SA_PASSWORD: ${{ secrets.CI_SQL_SA_PASSWORD }}
+          MSSQL_SA_PASSWORD: ${{ secrets.CI_SQL_SA_PASSWORD }}
         ports:
           - 1433:1433
-        options: >-
-          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $SA_PASSWORD -C -Q 'SELECT 1' || exit 1"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
+        # No docker-level health check here on purpose - the exact sqlcmd
+        # path inside this image varies by version/tag, and a health check
+        # that can't even execute makes the whole service report as failed
+        # rather than just "not ready yet". Waiting is done from the runner
+        # side instead, in the step below.
 
     steps:
       - name: Checkout repository
@@ -44,6 +46,19 @@ jobs:
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
           echo "/opt/mssql-tools18/bin" >> $GITHUB_PATH
+
+      - name: Wait for SQL Server to accept connections
+        run: |
+          for i in $(seq 1 30); do
+            if sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -Q "SELECT 1" > /dev/null 2>&1; then
+              echo "SQL Server is ready."
+              exit 0
+            fi
+            echo "Waiting for SQL Server... ($i/30)"
+            sleep 5
+          done
+          echo "SQL Server did not become ready in time."
+          exit 1
 
       - name: Create TestLeatherPOS database
         run: sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -Q "CREATE DATABASE TestLeatherPOS"

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import CustomTable from '../../common/CustomTable';
 import AddEdit from './Pages/AddEdit';
-import { getAllContainers, getSuppliers } from './Services';
+import { getAllContainers, getSuppliers } from '../Services';
 import { getGroupIDFromToken } from '../../common/tokenDecoder';
 import { getAllItems } from '../Items/Services';
 

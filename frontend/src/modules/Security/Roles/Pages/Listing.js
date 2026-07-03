@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import CustomTable from '../../../common/CustomTable';
 import AddEdit from './AddEdit';
-import { getAllRoles, updateRole } from './Services';
+import { getAllRoles, updateRole } from '../Services';
 import { getGroupIDFromToken, getUserIDFromToken } from '../../../common/tokenDecoder';
 
 export default function Listing() {

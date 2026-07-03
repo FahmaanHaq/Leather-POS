@@ -118,7 +118,7 @@ export default function AddEdit({ item, groupId, uomList, onClose, onSaved }) {
                                         fullWidth
                                     >
                                         {(uomList ?? []).map((u) => (
-                                            <MenuItem key={u.uomid} value={u.uomid}>{u.uomname} ({u.uomcode})</MenuItem>
+                                        <MenuItem key={u.uomid} value={u.uomid}>{u.uomName} ({u.uomCode})</MenuItem>
                                         ))}
                                     </TextField>
                                 </Grid>

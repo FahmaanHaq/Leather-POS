@@ -1,25 +1,13 @@
-# tSQLt install files (manual step required)
+# tSQLt install files
 
-This folder needs two files before `database-tests.yml` will actually run:
+`tSQLt.class.sql` and `PrepareServer.sql` are the official pre-built tSQLt
+V1.0.8083.3529 distributable (from tsqlt.org), committed here so the
+`database-tests.yml` CI workflow doesn't depend on fetching anything from an
+external site at run time.
 
-1. Go to https://tsqlt.org/downloads/ and download the latest tSQLt release zip.
-2. Extract it and copy these two files into this folder:
-   - `tSQLt.class.sql`
-   - `SetClrEnabled.sql`
-3. Commit them to the repo.
+Note the actual filename is `PrepareServer.sql` (not `SetClrEnabled.sql` as
+an earlier version of this README incorrectly assumed before the real
+package was available to check).
 
-Why this isn't automated: a CI workflow that silently downloads a third-party
-SQL install script from a hardcoded URL is fragile (the URL can change, and a
-failed silent download produces a confusing downstream error rather than a
-clear one). Committing the files directly is more reliable and means the CI
-behavior doesn't depend on an external site being up during your pipeline run.
-
-You'll also need to add a GitHub Actions secret:
-- Name: `CI_SQL_SA_PASSWORD`
-- Value: any strong password (this is only used inside the disposable CI
-  container, not your real Azure SQL database - it's not the same password
-  as anything else in this project)
-
-Until both files are added, `database-tests.yml` will fail at the
-"Install tSQLt" step with a clear file-not-found error, rather than doing
-anything silently wrong.
+If you ever need to upgrade tSQLt, download the new release from
+https://tsqlt.org/downloads/ and replace both files here.

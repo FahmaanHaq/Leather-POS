@@ -49,12 +49,11 @@ jobs:
 
       - name: Wait for SQL Server to accept connections
         run: |
+          which sqlcmd
+          sqlcmd -? | head -1
           for i in $(seq 1 30); do
-            if sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -Q "SELECT 1" > /dev/null 2>&1; then
-              echo "SQL Server is ready."
-              exit 0
-            fi
-            echo "Waiting for SQL Server... ($i/30)"
+            echo "--- Attempt $i/30 ---"
+            sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -Q "SELECT 1" && { echo "SQL Server is ready."; exit 0; }
             sleep 5
           done
           echo "SQL Server did not become ready in time."
@@ -65,17 +64,19 @@ jobs:
 
       - name: Deploy schema and stored procedures
         run: |
-          for f in database/01_schema_phase1.sql database/02_sp_security.sql database/03_sp_customers.sql database/04_sp_items_uom.sql database/05_sp_containers.sql database/06_auth_bootstrap.sql database/07_gap_closure.sql; do
+          for f in database/01_schema_phase1.sql database/02_sp_security.sql database/03_sp_customers.sql database/04_sp_items_uom.sql database/05_sp_containers.sql database/06_auth_bootstrap.sql database/07_gap_closure.sql database/08_schema_phase2.sql database/09_sp_billing.sql database/10_sp_payments.sql database/11_phase2_screens.sql; do
             sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -i "$f"
           done
 
       - name: Install tSQLt
         run: |
-          sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -i database/tsqlt/SetClrEnabled.sql
+          sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -i database/tsqlt/PrepareServer.sql
           sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -i database/tsqlt/tSQLt.class.sql
 
       - name: Run guard-rule tests
-        run: sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -i database/tests/tSQLt_Phase1_GuardTests.sql
+        run: |
+          sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -i database/tests/tSQLt_Phase1_GuardTests.sql
+          sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -i database/tests/tSQLt_Phase2_GuardTests.sql
 
       - name: Execute tSQLt.RunAll and fail on any test failure
         run: |

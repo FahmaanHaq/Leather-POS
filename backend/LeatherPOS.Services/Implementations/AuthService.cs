@@ -45,6 +45,19 @@ namespace LeatherPOS.Services.Implementations
                 return LeatherPOSResponse.Fail("Incorrect username or password.");
 
             var token = GenerateToken(user);
+
+            var logParams = new Dictionary<string, Tuple<string, DbType, ParameterDirection>>
+            {
+                { "@GroupID", new Tuple<string, DbType, ParameterDirection>(user.GroupID.ToString(), DbType.Int32, ParameterDirection.Input) },
+                { "@UserID", new Tuple<string, DbType, ParameterDirection>(user.UserID.ToString(), DbType.Int32, ParameterDirection.Input) },
+                { "@Action", new Tuple<string, DbType, ParameterDirection>("Login", DbType.String, ParameterDirection.Input) },
+                { "@EntityName", new Tuple<string, DbType, ParameterDirection>(string.Empty, DbType.String, ParameterDirection.Input) },
+                { "@EntityID", new Tuple<string, DbType, ParameterDirection>(string.Empty, DbType.Int32, ParameterDirection.Input) },
+                { "@BeforeValue", new Tuple<string, DbType, ParameterDirection>(string.Empty, DbType.String, ParameterDirection.Input) },
+                { "@AfterValue", new Tuple<string, DbType, ParameterDirection>(string.Empty, DbType.String, ParameterDirection.Input) }
+            };
+            await _unitOfWork.Repository().ExecuteSPWithInputOutputAsync("Security.LogActivity", logParams);
+
             return LeatherPOSResponse.Success(new LoginResult
             {
                 Token = token,
@@ -104,6 +117,30 @@ namespace LeatherPOS.Services.Implementations
             var userId = Convert.ToInt32(userOutput["@Result"]);
             if (userId <= 0)
                 return LeatherPOSResponse.Fail("Unable to create the initial administrator user.");
+
+            // Grant the new Administrator role full access to every existing screen,
+            // so the nav isn't empty the moment permission-based filtering kicks in.
+            var screens = await _unitOfWork.Repository().GetEntitiesBySPAsync<Screen>(
+                "Security.GetAllScreens", new Dictionary<string, Tuple<string, DbType, ParameterDirection>>());
+
+            foreach (var screen in screens)
+            {
+                var permParams = new Dictionary<string, Tuple<string, DbType, ParameterDirection>>
+                {
+                    { "@GroupID", new Tuple<string, DbType, ParameterDirection>(groupId.ToString(), DbType.Int32, ParameterDirection.Input) },
+                    { "@RoleID", new Tuple<string, DbType, ParameterDirection>(roleId.ToString(), DbType.Int32, ParameterDirection.Input) },
+                    { "@ScreenID", new Tuple<string, DbType, ParameterDirection>(screen.ScreenID.ToString(), DbType.Int32, ParameterDirection.Input) },
+                    { "@CanView", new Tuple<string, DbType, ParameterDirection>("true", DbType.Boolean, ParameterDirection.Input) },
+                    { "@CanAdd", new Tuple<string, DbType, ParameterDirection>("true", DbType.Boolean, ParameterDirection.Input) },
+                    { "@CanEdit", new Tuple<string, DbType, ParameterDirection>("true", DbType.Boolean, ParameterDirection.Input) },
+                    { "@CanDelete", new Tuple<string, DbType, ParameterDirection>("true", DbType.Boolean, ParameterDirection.Input) },
+                    { "@CanExport", new Tuple<string, DbType, ParameterDirection>("true", DbType.Boolean, ParameterDirection.Input) },
+                    { "@CanApprove", new Tuple<string, DbType, ParameterDirection>("true", DbType.Boolean, ParameterDirection.Input) },
+                    { "@CreatedBy", new Tuple<string, DbType, ParameterDirection>(userId.ToString(), DbType.Int32, ParameterDirection.Input) },
+                    { "@Result", new Tuple<string, DbType, ParameterDirection>(string.Empty, DbType.Int32, ParameterDirection.Output) }
+                };
+                await _unitOfWork.Repository().ExecuteSPWithInputOutputAsync("Security.SaveRolePermission", permParams);
+            }
 
             return LeatherPOSResponse.Success(null, "Setup complete. You can now log in.");
         }

@@ -1,0 +1,70 @@
+name: Database Tests (tSQLt)
+
+# This workflow expects tSQLt.class.sql and SetClrEnabled.sql to be committed
+# under database/tsqlt/ (download both from https://tsqlt.org/downloads/ and
+# drop them in that folder - not fetched automatically here, since a hardcoded
+# download URL in CI is a fragile, silent-failure-prone thing to guess at).
+# Until those files are added, this workflow will fail at the "Install tSQLt"
+# step with a clear "file not found" error rather than something confusing.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'database/**'
+      - '.github/workflows/database-tests.yml'
+  workflow_dispatch: {}
+
+jobs:
+  tsqlt:
+    runs-on: ubuntu-latest
+
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          SA_PASSWORD: ${{ secrets.CI_SQL_SA_PASSWORD }}
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $SA_PASSWORD -C -Q 'SELECT 1' || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install sqlcmd
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+          echo "/opt/mssql-tools18/bin" >> $GITHUB_PATH
+
+      - name: Create TestLeatherPOS database
+        run: sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -Q "CREATE DATABASE TestLeatherPOS"
+
+      - name: Deploy schema and stored procedures
+        run: |
+          for f in database/01_schema_phase1.sql database/02_sp_security.sql database/03_sp_customers.sql database/04_sp_items_uom.sql database/05_sp_containers.sql database/06_auth_bootstrap.sql database/07_gap_closure.sql; do
+            sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -i "$f"
+          done
+
+      - name: Install tSQLt
+        run: |
+          sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -i database/tsqlt/SetClrEnabled.sql
+          sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -i database/tsqlt/tSQLt.class.sql
+
+      - name: Run guard-rule tests
+        run: sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -i database/tests/tSQLt_Phase1_GuardTests.sql
+
+      - name: Execute tSQLt.RunAll and fail on any test failure
+        run: |
+          sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -Q "EXEC tSQLt.RunAll;"
+          FAILED=$(sqlcmd -S localhost -U sa -P "${{ secrets.CI_SQL_SA_PASSWORD }}" -C -d TestLeatherPOS -h -1 -Q "SET NOCOUNT ON; SELECT COUNT(*) FROM tSQLt.TestResult WHERE Result <> 'Success';")
+          echo "Failed tests: $FAILED"
+          if [ "$(echo $FAILED | xargs)" != "0" ]; then exit 1; fi

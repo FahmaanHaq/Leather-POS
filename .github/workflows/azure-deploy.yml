@@ -1,4 +1,4 @@
-﻿name: Deploy Backend to Azure
+name: Deploy Backend to Azure
 
 on:
   push:
@@ -13,7 +13,32 @@ env:
   AZURE_WEBAPP_PACKAGE_PATH: backend/LeatherPOS.API/publish
 
 jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore backend/LeatherPOS.UnitTests/LeatherPOS.UnitTests.csproj
+
+      - name: Run unit tests
+        run: dotnet test backend/LeatherPOS.UnitTests/LeatherPOS.UnitTests.csproj --configuration Release --logger "trx;LogFileName=test-results.trx"
+
+      - name: Publish test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: backend/LeatherPOS.UnitTests/TestResults/test-results.trx
+
   build-and-deploy:
+    needs: test
     runs-on: windows-latest
 
     steps:

@@ -46,6 +46,24 @@ namespace LeatherPOS.Services.Implementations
             };
             var output = await _unitOfWork.Repository().ExecuteSPWithInputOutputAsync("Security.SaveRolePermission", parameters);
             var resultCode = Convert.ToInt32(output["@Result"]);
+
+            if (resultCode > 0)
+            {
+                var logParams = new Dictionary<string, Tuple<string, DbType, ParameterDirection>>
+                {
+                    { "@GroupID", new Tuple<string, DbType, ParameterDirection>(model.GroupID.ToString(), DbType.Int32, ParameterDirection.Input) },
+                    { "@UserID", new Tuple<string, DbType, ParameterDirection>(model.CreatedBy.ToString(), DbType.Int32, ParameterDirection.Input) },
+                    { "@Action", new Tuple<string, DbType, ParameterDirection>("PermissionChange", DbType.String, ParameterDirection.Input) },
+                    { "@EntityName", new Tuple<string, DbType, ParameterDirection>("RolePermission", DbType.String, ParameterDirection.Input) },
+                    { "@EntityID", new Tuple<string, DbType, ParameterDirection>(model.ScreenID.ToString(), DbType.Int32, ParameterDirection.Input) },
+                    { "@BeforeValue", new Tuple<string, DbType, ParameterDirection>(string.Empty, DbType.String, ParameterDirection.Input) },
+                    { "@AfterValue", new Tuple<string, DbType, ParameterDirection>(
+                        $"RoleID={model.RoleID}, View={model.CanView}, Add={model.CanAdd}, Edit={model.CanEdit}, Delete={model.CanDelete}, Export={model.CanExport}, Approve={model.CanApprove}",
+                        DbType.String, ParameterDirection.Input) }
+                };
+                await _unitOfWork.Repository().ExecuteSPWithInputOutputAsync("Security.LogActivity", logParams);
+            }
+
             return resultCode > 0
                 ? LeatherPOSResponse.Success(resultCode, "Permission saved successfully")
                 : LeatherPOSResponse.Fail("An unexpected error occurred while saving the permission");

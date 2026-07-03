@@ -1,0 +1,15 @@
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\bin\Release\net8.0\LeatherPOS.Services.deps.json
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\bin\Release\net8.0\LeatherPOS.Services.dll
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\bin\Release\net8.0\LeatherPOS.Services.pdb
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\bin\Release\net8.0\LeatherPOS.Models.dll
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\bin\Release\net8.0\LeatherPOS.Models.pdb
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\obj\Release\net8.0\LeatherPOS.Services.csproj.AssemblyReference.cache
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\obj\Release\net8.0\LeatherPOS.Services.GeneratedMSBuildEditorConfig.editorconfig
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\obj\Release\net8.0\LeatherPOS.Services.AssemblyInfoInputs.cache
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\obj\Release\net8.0\LeatherPOS.Services.AssemblyInfo.cs
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\obj\Release\net8.0\LeatherPOS.Services.csproj.CoreCompileInputs.cache
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\obj\Release\net8.0\LeatherP.81BCFE36.Up2Date
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\obj\Release\net8.0\LeatherPOS.Services.dll
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\obj\Release\net8.0\refint\LeatherPOS.Services.dll
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\obj\Release\net8.0\LeatherPOS.Services.pdb
+D:\Projects\LeatherPOS\backend\LeatherPOS.Services\obj\Release\net8.0\ref\LeatherPOS.Services.dll

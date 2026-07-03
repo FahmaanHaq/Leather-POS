@@ -1,0 +1,11 @@
+D:\Projects\LeatherPOS\backend\LeatherPOS.Models\bin\Release\net8.0\LeatherPOS.Models.deps.json
+D:\Projects\LeatherPOS\backend\LeatherPOS.Models\bin\Release\net8.0\LeatherPOS.Models.dll
+D:\Projects\LeatherPOS\backend\LeatherPOS.Models\bin\Release\net8.0\LeatherPOS.Models.pdb
+D:\Projects\LeatherPOS\backend\LeatherPOS.Models\obj\Release\net8.0\LeatherPOS.Models.GeneratedMSBuildEditorConfig.editorconfig
+D:\Projects\LeatherPOS\backend\LeatherPOS.Models\obj\Release\net8.0\LeatherPOS.Models.AssemblyInfoInputs.cache
+D:\Projects\LeatherPOS\backend\LeatherPOS.Models\obj\Release\net8.0\LeatherPOS.Models.AssemblyInfo.cs
+D:\Projects\LeatherPOS\backend\LeatherPOS.Models\obj\Release\net8.0\LeatherPOS.Models.csproj.CoreCompileInputs.cache
+D:\Projects\LeatherPOS\backend\LeatherPOS.Models\obj\Release\net8.0\LeatherPOS.Models.dll
+D:\Projects\LeatherPOS\backend\LeatherPOS.Models\obj\Release\net8.0\refint\LeatherPOS.Models.dll
+D:\Projects\LeatherPOS\backend\LeatherPOS.Models\obj\Release\net8.0\LeatherPOS.Models.pdb
+D:\Projects\LeatherPOS\backend\LeatherPOS.Models\obj\Release\net8.0\ref\LeatherPOS.Models.dll

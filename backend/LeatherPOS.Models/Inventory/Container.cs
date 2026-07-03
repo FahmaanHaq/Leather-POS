@@ -10,6 +10,15 @@ namespace LeatherPOS.Models.Inventory
         public bool IsActive { get; set; }
     }
 
+    public class SupplierSaveModel
+    {
+        public int GroupID { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? ContactInfo { get; set; }
+        public string? PaymentTerms { get; set; }
+        public int CreatedBy { get; set; }
+    }
+
     public class Container
     {
         public int ContainerID { get; set; }

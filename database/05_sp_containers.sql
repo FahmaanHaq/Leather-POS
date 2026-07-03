@@ -22,6 +22,13 @@ CREATE OR ALTER PROCEDURE Inventory.SaveSupplier
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    IF EXISTS (SELECT 1 FROM Inventory.Suppliers WHERE GroupID = @GroupID AND Name = @Name AND IsActive = 1)
+    BEGIN
+        SET @Result = -1; -- duplicate supplier name within group
+        RETURN;
+    END
+
     INSERT INTO Inventory.Suppliers (GroupID, Name, ContactInfo, PaymentTerms, CreatedBy, CreatedDate)
     VALUES (@GroupID, @Name, @ContactInfo, @PaymentTerms, @CreatedBy, GETDATE());
     SET @Result = SCOPE_IDENTITY();

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Formik, Form, FieldArray } from 'formik';
 import * as Yup from 'yup';
 import TextField from '@mui/material/TextField';
@@ -14,6 +14,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import Modal from '../../../common/Modal';
+import SupplierQuickAdd from './SupplierQuickAdd';
 import { saveContainer } from '../Services';
 import { getUserIDFromToken } from '../../../common/tokenDecoder';
 
@@ -33,8 +34,13 @@ const validationSchema = Yup.object({
 });
 
 export default function AddEdit({ groupId, suppliers, items, onClose, onSaved }) {
+    // Local copy so a freshly-created supplier can be added to the dropdown
+    // immediately without needing to reload the whole Containers screen.
+    const [localSuppliers, setLocalSuppliers] = useState(suppliers ?? []);
+    const [showSupplierQuickAdd, setShowSupplierQuickAdd] = useState(false);
+
     const initialValues = {
-        supplierID: suppliers?.[0]?.supplierID ?? '',
+        supplierID: localSuppliers?.[0]?.supplierID ?? '',
         referenceNo: '',
         receivedDate: new Date().toISOString().slice(0, 10),
         lines: [{ itemID: items?.[0]?.itemID ?? '', quantity: '', unitCost: '' }],
@@ -58,27 +64,39 @@ export default function AddEdit({ groupId, suppliers, items, onClose, onSaved })
     return (
         <Modal title="Receive Container (GRN)" onClose={onClose} maxWidth="md">
             <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>
-                {({ values, errors, touched, handleChange, handleBlur, isSubmitting, status }) => (
+                {({ values, errors, touched, handleChange, handleBlur, isSubmitting, status, setFieldValue }) => (
                     <Form>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             {status && <Alert severity="error">{status}</Alert>}
 
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={4}>
-                                    <TextField
-                                        select
-                                        label="Supplier"
-                                        name="supplierID"
-                                        value={values.supplierID}
-                                        onChange={handleChange}
-                                        error={touched.supplierID && !!errors.supplierID}
-                                        helperText={touched.supplierID && errors.supplierID}
-                                        fullWidth
-                                    >
-                                        {(suppliers ?? []).map((s) => (
-                                            <MenuItem key={s.supplierID} value={s.supplierID}>{s.name}</MenuItem>
-                                        ))}
-                                    </TextField>
+                                    <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'flex-start' }}>
+                                        <TextField
+                                            select
+                                            label="Supplier"
+                                            name="supplierID"
+                                            value={values.supplierID}
+                                            onChange={handleChange}
+                                            error={touched.supplierID && !!errors.supplierID}
+                                            helperText={
+                                                (touched.supplierID && errors.supplierID) ||
+                                                (localSuppliers.length === 0 ? 'No suppliers yet - add one first' : '')
+                                            }
+                                            fullWidth
+                                        >
+                                            {localSuppliers.map((s) => (
+                                                <MenuItem key={s.supplierID} value={s.supplierID}>{s.name}</MenuItem>
+                                            ))}
+                                        </TextField>
+                                        <Button
+                                            size="small"
+                                            onClick={() => setShowSupplierQuickAdd(true)}
+                                            sx={{ mt: 0.5, whiteSpace: 'nowrap' }}
+                                        >
+                                            + New
+                                        </Button>
+                                    </Box>
                                 </Grid>
                                 <Grid item xs={12} sm={4}>
                                     <TextField
@@ -191,6 +209,18 @@ export default function AddEdit({ groupId, suppliers, items, onClose, onSaved })
                                 Save Container
                             </Button>
                         </DialogActions>
+
+                        {showSupplierQuickAdd && (
+                            <SupplierQuickAdd
+                                groupId={groupId}
+                                onClose={() => setShowSupplierQuickAdd(false)}
+                                onSaved={(newSupplier) => {
+                                    setLocalSuppliers((prev) => [...prev, newSupplier]);
+                                    setFieldValue('supplierID', newSupplier.supplierID);
+                                    setShowSupplierQuickAdd(false);
+                                }}
+                            />
+                        )}
                     </Form>
                 )}
             </Formik>

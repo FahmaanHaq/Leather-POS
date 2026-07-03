@@ -77,5 +77,28 @@ namespace LeatherPOS.Services.Implementations
             var result = await _unitOfWork.Repository().GetEntitiesBySPAsync<Supplier>("Inventory.GetAllSuppliers", parameters);
             return LeatherPOSResponse.Success(result);
         }
+
+        public async Task<LeatherPOSResponse> SaveSupplierAsync(SupplierSaveModel model)
+        {
+            var parameters = new Dictionary<string, Tuple<string, DbType, ParameterDirection>>
+            {
+                { "@GroupID", new Tuple<string, DbType, ParameterDirection>(model.GroupID.ToString(), DbType.Int32, ParameterDirection.Input) },
+                { "@Name", new Tuple<string, DbType, ParameterDirection>(model.Name, DbType.String, ParameterDirection.Input) },
+                { "@ContactInfo", new Tuple<string, DbType, ParameterDirection>(model.ContactInfo ?? string.Empty, DbType.String, ParameterDirection.Input) },
+                { "@PaymentTerms", new Tuple<string, DbType, ParameterDirection>(model.PaymentTerms ?? string.Empty, DbType.String, ParameterDirection.Input) },
+                { "@CreatedBy", new Tuple<string, DbType, ParameterDirection>(model.CreatedBy.ToString(), DbType.Int32, ParameterDirection.Input) },
+                { "@Result", new Tuple<string, DbType, ParameterDirection>(string.Empty, DbType.Int32, ParameterDirection.Output) }
+            };
+
+            var output = await _unitOfWork.Repository().ExecuteSPWithInputOutputAsync("Inventory.SaveSupplier", parameters);
+            var resultCode = Convert.ToInt32(output["@Result"]);
+
+            return resultCode switch
+            {
+                > 0 => LeatherPOSResponse.Success(resultCode, "Supplier added successfully"),
+                -1 => LeatherPOSResponse.Fail("A supplier with this name already exists"),
+                _ => LeatherPOSResponse.Fail("An unexpected error occurred while adding the supplier")
+            };
+        }
     }
 }

@@ -23,5 +23,8 @@ namespace LeatherPOS.API.Areas.Inventory.Controllers
 
         [HttpGet("Suppliers/{groupId}")]
         public async Task<IActionResult> Suppliers(int groupId) => Ok(await _containerService.GetAllSuppliersAsync(groupId));
+
+        [HttpPost("Suppliers/Save")]
+        public async Task<IActionResult> SaveSupplier([FromBody] SupplierSaveModel model) => Ok(await _containerService.SaveSupplierAsync(model));
     }
 }

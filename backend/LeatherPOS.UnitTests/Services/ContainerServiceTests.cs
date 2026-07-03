@@ -58,5 +58,31 @@ namespace LeatherPOS.UnitTests.Services
             response.Status.Should().BeTrue();
             response.Data.Should().Be(15);
         }
+
+        [Fact]
+        public async Task SaveSupplierAsync_PositiveResult_ReturnsNewSupplierId()
+        {
+            _repositoryMock
+                .Setup(r => r.ExecuteSPWithInputOutputAsync("Inventory.SaveSupplier", It.IsAny<Dictionary<string, Tuple<string, DbType, ParameterDirection>>>()))
+                .ReturnsAsync(new Dictionary<string, object> { { "@Result", 3 } });
+
+            var response = await _sut.SaveSupplierAsync(new SupplierSaveModel { GroupID = 1, Name = "Colombo Tannery", CreatedBy = 1 });
+
+            response.Status.Should().BeTrue();
+            response.Data.Should().Be(3);
+        }
+
+        [Fact]
+        public async Task SaveSupplierAsync_ResultCodeMinus1_ReturnsDuplicateNameError()
+        {
+            _repositoryMock
+                .Setup(r => r.ExecuteSPWithInputOutputAsync("Inventory.SaveSupplier", It.IsAny<Dictionary<string, Tuple<string, DbType, ParameterDirection>>>()))
+                .ReturnsAsync(new Dictionary<string, object> { { "@Result", -1 } });
+
+            var response = await _sut.SaveSupplierAsync(new SupplierSaveModel { GroupID = 1, Name = "Colombo Tannery", CreatedBy = 1 });
+
+            response.Status.Should().BeFalse();
+            response.Message.Should().Contain("already exists");
+        }
     }
 }

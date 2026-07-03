@@ -9,5 +9,6 @@ namespace LeatherPOS.Services.Interfaces
         Task<LeatherPOSResponse> GetContainerByIdAsync(int containerId);
         Task<LeatherPOSResponse> SaveContainerAsync(ContainerSaveModel model);
         Task<LeatherPOSResponse> GetAllSuppliersAsync(int groupId);
+        Task<LeatherPOSResponse> SaveSupplierAsync(SupplierSaveModel model);
     }
 }

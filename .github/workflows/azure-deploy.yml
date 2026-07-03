@@ -1,0 +1,39 @@
+﻿name: Deploy Backend to Azure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/azure-deploy.yml'
+  workflow_dispatch: {}
+
+env:
+  AZURE_WEBAPP_NAME: leatherpos-api-01
+  AZURE_WEBAPP_PACKAGE_PATH: backend/LeatherPOS.API/publish
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore backend/LeatherPOS.API/LeatherPOS.API.csproj
+
+      - name: Publish
+        run: dotnet publish backend/LeatherPOS.API/LeatherPOS.API.csproj -c Release -o ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}

@@ -25,7 +25,7 @@ import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalance
 import PageHeader from '../../../common/PageHeader';
 import PaymentPanel from './PaymentPanel';
 import DebtSettlement from './DebtSettlement';
-import { searchItemsForBilling, saveInvoice, getInvoiceById } from '../Services';
+import { searchItemsForBilling, saveInvoice, getInvoiceById, getCustomerItemLastPrice } from '../Services';
 import { getAllCustomers } from '../../Customers/Services';
 import { getGroupIDFromToken, getUserIDFromToken } from '../../../common/tokenDecoder';
 
@@ -117,8 +117,31 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const addLine = (item) => {
+    const addLine = async (item) => {
         if (!item) return;
+
+        // Clear the search box immediately so rapid scanning never feels
+        // blocked while the price-history lookup (if any) is in flight.
+        setItemSearchTerm('');
+        setItemOptions([]);
+
+        let unitPrice = item.sellingPrice;
+        let discount = 0;
+        let priceSource = null;
+
+        // Not in the original SRS: if this customer has bought this exact
+        // item before, default to what they actually paid last time rather
+        // than the catalogue price. Applies to any identified customer
+        // (Regular or Walk-in looked up by phone), not just credit accounts.
+        if (selectedCustomer) {
+            const priceRes = await getCustomerItemLastPrice(selectedCustomer.customerID, item.itemID);
+            if (priceRes?.status && priceRes.data) {
+                unitPrice = priceRes.data.unitPrice;
+                discount = priceRes.data.discount ?? 0;
+                priceSource = priceRes.data.lastInvoiceNo;
+            }
+        }
+
         setLines((prev) => [
             ...prev,
             {
@@ -127,13 +150,12 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                 uomID: item.baseUOMID,
                 uomCode: item.uomCode,
                 quantity: 1,
-                unitPrice: item.sellingPrice,
-                discount: 0,
+                unitPrice,
+                discount,
                 onHandQuantity: item.onHandQuantity,
+                priceSource, // set only when a customer's prior price was applied
             },
         ]);
-        setItemSearchTerm('');
-        setItemOptions([]);
         focusSearch();
     };
 
@@ -334,7 +356,20 @@ export default function BillingScreen({ resumeInvoiceId, onDone }) {
                                 )}
                                 {lines.map((line, index) => (
                                     <TableRow key={index}>
-                                        <TableCell>{line.itemName}</TableCell>
+                                        <TableCell>
+                                            {line.itemName}
+                                            {line.priceSource && (
+                                                <Tooltip title={`Priced at what this customer paid on ${line.priceSource}, not the catalogue price`}>
+                                                    <Chip
+                                                        label="customer price"
+                                                        size="small"
+                                                        color="info"
+                                                        variant="outlined"
+                                                        sx={{ ml: 1, height: 20, fontSize: 11 }}
+                                                    />
+                                                </Tooltip>
+                                            )}
+                                        </TableCell>
                                         <TableCell align="right">
                                             <TextField
                                                 type="number"

@@ -11,5 +11,6 @@ namespace LeatherPOS.Services.Interfaces
         Task<LeatherPOSResponse> GetHeldInvoicesAsync(int groupId);
         Task<LeatherPOSResponse> GetInvoiceByIdAsync(int invoiceId);
         Task<LeatherPOSResponse> SearchItemsForBillingAsync(int groupId, string searchTerm);
+        Task<LeatherPOSResponse> GetCustomerItemLastPriceAsync(int customerId, int itemId);
     }
 }

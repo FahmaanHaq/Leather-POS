@@ -132,4 +132,17 @@ namespace LeatherPOS.Models.Sales
         public decimal SellingPrice { get; set; }
         public decimal OnHandQuantity { get; set; }
     }
+
+    /// <summary>
+    /// Not in the original SRS - added so a returning customer's unit price
+    /// for an item they've bought before can default to what they actually
+    /// paid last time, rather than the catalogue SellingPrice.
+    /// </summary>
+    public class CustomerItemPriceHistory
+    {
+        public decimal UnitPrice { get; set; }
+        public decimal Discount { get; set; }
+        public DateTime LastPurchaseDate { get; set; }
+        public string? LastInvoiceNo { get; set; }
+    }
 }

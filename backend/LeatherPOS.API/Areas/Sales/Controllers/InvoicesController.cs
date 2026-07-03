@@ -32,5 +32,12 @@ namespace LeatherPOS.API.Areas.Sales.Controllers
         [HttpGet("SearchItems/{groupId}")]
         public async Task<IActionResult> SearchItems(int groupId, [FromQuery] string term)
             => Ok(await _invoiceService.SearchItemsForBillingAsync(groupId, term ?? string.Empty));
+
+        // Not in the original SRS: returns this customer's last price for this
+        // item, if they've bought it before, so the Billing screen can default
+        // to it instead of the catalogue SellingPrice.
+        [HttpGet("CustomerItemPrice/{customerId}/{itemId}")]
+        public async Task<IActionResult> CustomerItemPrice(int customerId, int itemId)
+            => Ok(await _invoiceService.GetCustomerItemLastPriceAsync(customerId, itemId));
     }
 }

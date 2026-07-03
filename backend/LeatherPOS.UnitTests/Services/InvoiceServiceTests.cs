@@ -137,5 +137,37 @@ namespace LeatherPOS.UnitTests.Services
             detail.Lines.Should().HaveCount(1);
             detail.Payments.Should().HaveCount(1);
         }
+        [Fact]
+        public async Task GetCustomerItemLastPriceAsync_NoHistory_ReturnsSuccessWithNullData()
+        {
+            _repositoryMock
+                .Setup(r => r.GetEntityBySPAsync<CustomerItemPriceHistory>(
+                    "Sales.GetCustomerItemLastPrice", It.IsAny<Dictionary<string, Tuple<string, DbType, ParameterDirection>>>()))
+                .ReturnsAsync((CustomerItemPriceHistory?)null);
+
+            var response = await _sut.GetCustomerItemLastPriceAsync(1, 5);
+
+            // No purchase history is a normal outcome, not an error - the
+            // Billing screen just falls back to the catalogue price.
+            response.Status.Should().BeTrue();
+            response.Data.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task GetCustomerItemLastPriceAsync_HasHistory_ReturnsThatPrice()
+        {
+            var history = new CustomerItemPriceHistory { UnitPrice = 850, Discount = 0, LastInvoiceNo = "INV-2026-000002" };
+            _repositoryMock
+                .Setup(r => r.GetEntityBySPAsync<CustomerItemPriceHistory>(
+                    "Sales.GetCustomerItemLastPrice", It.IsAny<Dictionary<string, Tuple<string, DbType, ParameterDirection>>>()))
+                .ReturnsAsync(history);
+
+            var response = await _sut.GetCustomerItemLastPriceAsync(1, 5);
+
+            response.Status.Should().BeTrue();
+            var data = response.Data as CustomerItemPriceHistory;
+            data.Should().NotBeNull();
+            data!.UnitPrice.Should().Be(850);
+        }
     }
 }

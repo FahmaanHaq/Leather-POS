@@ -127,6 +127,18 @@ namespace LeatherPOS.Services.Implementations
             return LeatherPOSResponse.Success(result);
         }
 
+        public async Task<LeatherPOSResponse> GetCustomerItemLastPriceAsync(int customerId, int itemId)
+        {
+            var parameters = new Dictionary<string, Tuple<string, DbType, ParameterDirection>>
+            {
+                { "@CustomerID", new Tuple<string, DbType, ParameterDirection>(customerId.ToString(), DbType.Int32, ParameterDirection.Input) },
+                { "@ItemID", new Tuple<string, DbType, ParameterDirection>(itemId.ToString(), DbType.Int32, ParameterDirection.Input) }
+            };
+            // Returns null (no rows) when this customer has never bought this item before - that's a normal, expected outcome, not an error.
+            var result = await _unitOfWork.Repository().GetEntityBySPAsync<CustomerItemPriceHistory>("Sales.GetCustomerItemLastPrice", parameters);
+            return LeatherPOSResponse.Success(result);
+        }
+
         private static DataTable BuildLinesTable(List<InvoiceLineInput> lines)
         {
             var table = new DataTable();

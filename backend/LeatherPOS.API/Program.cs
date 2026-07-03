@@ -39,6 +39,7 @@ builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IUOMService, UOMService>();
 builder.Services.AddScoped<IContainerService, ContainerService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 // JWT auth - Issuer/Audience/Key come from App Service Application settings
 // (Jwt__Issuer, Jwt__Audience, Jwt__Key), never hardcoded.
@@ -46,6 +47,9 @@ var jwtKey = builder.Configuration["Jwt:Key"];
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // Keep the claim names exactly as issued (UserID, GroupID, Role) rather
+        // than letting .NET remap short JWT claim names to long ClaimTypes URIs.
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -55,7 +59,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(string.IsNullOrEmpty(jwtKey) ? "DEV-ONLY-PLACEHOLDER-KEY-CHANGE-ME-1234567890" : jwtKey))
+                Encoding.UTF8.GetBytes(string.IsNullOrEmpty(jwtKey) ? "DEV-ONLY-PLACEHOLDER-KEY-CHANGE-ME-1234567890" : jwtKey)),
+            RoleClaimType = "Role",
+            NameClaimType = "Username"
         };
     });
 builder.Services.AddAuthorization();
@@ -68,6 +74,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
+app.UseRouting();
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();

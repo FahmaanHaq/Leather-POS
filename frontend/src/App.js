@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
 import Box from '@mui/material/Box';
-import Drawer from '@mui/material/Drawer';
-import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
-import List from '@mui/material/List';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import Divider from '@mui/material/Divider';
+import Button from '@mui/material/Button';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
@@ -17,13 +11,13 @@ import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined';
 
 import Dashboard from './modules/Dashboard';
+import Login from './modules/Auth/Login';
 import CustomersListing from './modules/Customers/Pages/Listing';
 import RolesListing from './modules/Security/Roles/Pages/Listing';
 import UsersListing from './modules/Security/Users/Pages/Listing';
 import ItemsListing from './modules/Items/Pages/Listing';
 import ContainersListing from './modules/Containers/Pages/Listing';
-
-const DRAWER_WIDTH = 240;
+import { isAuthenticated, logout, getUsernameFromToken } from './common/tokenDecoder';
 
 const NAV = [
   { key: 'dashboard', label: 'Dashboard', icon: DashboardOutlinedIcon, Component: Dashboard },
@@ -35,67 +29,108 @@ const NAV = [
 ];
 
 export default function App() {
+  const [authed, setAuthed] = useState(isAuthenticated());
   const [activeKey, setActiveKey] = useState('dashboard');
+
+  if (!authed) {
+    return <Login onAuthenticated={() => setAuthed(true)} />;
+  }
+
   const active = NAV.find((n) => n.key === activeKey) ?? NAV[0];
   const ActiveComponent = active.Component;
 
+  const handleLogout = () => {
+    logout();
+    setAuthed(false);
+  };
+
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <Drawer
-        variant="permanent"
+    <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
+      {/* Masthead */}
+      <Box
         sx={{
-          width: DRAWER_WIDTH,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' },
+          backgroundColor: '#4A2E1B',
+          color: '#F0E6D8',
+          px: 4,
+          pt: 2.5,
+          pb: 0,
         }}
       >
-        <Toolbar sx={{ px: 3 }}>
-          <Typography variant="h6" sx={{ fontFamily: '"Fraunces", serif', letterSpacing: 0.3 }}>
-            Leather POS
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography
+            variant="h5"
+            sx={{ fontFamily: '"Fraunces", serif', letterSpacing: 0.3 }}
+          >
+            Leather POS &amp; Accounting
           </Typography>
-        </Toolbar>
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)' }} />
-        <List sx={{ px: 1.5, py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Typography variant="body2" sx={{ color: 'rgba(240,230,216,0.85)' }}>
+              {getUsernameFromToken()}
+            </Typography>
+            <Button
+              size="small"
+              onClick={handleLogout}
+              startIcon={<LogoutOutlinedIcon fontSize="small" />}
+              sx={{ color: 'rgba(240,230,216,0.85)' }}
+            >
+              Sign out
+            </Button>
+          </Box>
+        </Box>
+
+        {/* Ledger tab strip - each tab is a trapezoid-ish index tab that sits
+            flush with the content area below it when active, like a binder
+            divider poking up out of the page. */}
+        <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'flex-end' }}>
           {NAV.map(({ key, label, icon: Icon }) => {
             const isActive = key === activeKey;
             return (
-              <ListItemButton
+              <Box
                 key={key}
-                selected={isActive}
                 onClick={() => setActiveKey(key)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && setActiveKey(key)}
                 sx={{
-                  borderRadius: 1.5,
-                  mb: 0.5,
-                  color: isActive ? '#FFF8F0' : 'rgba(240,230,216,0.75)',
-                  '&.Mui-selected': { backgroundColor: 'rgba(176,141,87,0.25)' },
-                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.08)' },
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  cursor: 'pointer',
+                  px: 2.25,
+                  py: 1.1,
+                  fontSize: 14,
+                  fontWeight: isActive ? 600 : 500,
+                  borderTopLeftRadius: 10,
+                  borderTopRightRadius: 10,
+                  backgroundColor: isActive ? 'background.default' : 'rgba(240,230,216,0.08)',
+                  color: isActive ? 'text.primary' : 'rgba(240,230,216,0.75)',
+                  boxShadow: isActive ? '0 -2px 6px rgba(0,0,0,0.12)' : 'none',
+                  transform: isActive ? 'translateY(1px)' : 'none',
+                  transition: 'background-color 0.15s, color 0.15s',
+                  '&:hover': {
+                    backgroundColor: isActive ? 'background.default' : 'rgba(240,230,216,0.16)',
+                  },
                 }}
               >
-                <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}>
-                  <Icon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText primary={label} primaryTypographyProps={{ fontSize: 14, fontWeight: isActive ? 600 : 500 }} />
-              </ListItemButton>
+                <Icon sx={{ fontSize: 18 }} />
+                {label}
+              </Box>
             );
           })}
-        </List>
-      </Drawer>
-
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <AppBar
-          position="sticky"
-          color="inherit"
-          elevation={0}
-          sx={{ borderBottom: '1px solid', borderColor: 'divider', backgroundColor: 'background.paper' }}
-        >
-          <Toolbar>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>{active.label}</Typography>
-          </Toolbar>
-        </AppBar>
-
-        <Box component="main" sx={{ flexGrow: 1, p: 3, backgroundColor: 'background.default' }}>
-          <ActiveComponent onNavigate={setActiveKey} />
         </Box>
+      </Box>
+
+      {/* Content sits flush against the active tab, like the page a ledger
+          tab points into. */}
+      <Box
+        component="main"
+        sx={{
+          backgroundColor: 'background.default',
+          minHeight: 'calc(100vh - 96px)',
+          p: 4,
+        }}
+      >
+        <ActiveComponent onNavigate={setActiveKey} />
       </Box>
     </Box>
   );

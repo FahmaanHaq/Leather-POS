@@ -60,8 +60,8 @@ describe('Items AddEdit form', () => {
 
         await waitFor(() => expect(onSaved).toHaveBeenCalled());
         expect(ItemServices.saveItem).toHaveBeenCalledWith(
-            expect.objectContaining({ itemCode: 'HIDE-002', reorderLevel: '2.500' })
-        );
+			expect.objectContaining({ itemCode: 'HIDE-002', reorderLevel: 2.5 })
+		);
     });
 
     test('shows the server duplicate-code error returned from the API', async () => {

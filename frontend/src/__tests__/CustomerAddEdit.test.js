@@ -56,8 +56,8 @@ describe('Customers AddEdit form', () => {
 
         await waitFor(() => expect(onSaved).toHaveBeenCalled());
         expect(CustomerServices.saveCustomer).toHaveBeenCalledWith(
-            expect.objectContaining({ customerType: 1, creditLimit: '50000', creditDays: '30' })
-        );
+			expect.objectContaining({ customerType: 1, creditLimit: 50000, creditDays: 30 })
+		);
     });
 
     test('rejects a negative credit limit', async () => {

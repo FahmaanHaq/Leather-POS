@@ -1,0 +1,97 @@
+trigger:
+  branches:
+    include: [ main, develop ]
+
+pr:
+  branches:
+    include: [ main, develop ]
+
+pool:
+  vmImage: 'windows-latest'   # tSQLt stage needs SQL Server; swap to a self-hosted agent if preferred
+
+variables:
+  testDbConnectionString: 'Server=(local)\SQLEXPRESS;Database=TestLeatherPOS;Trusted_Connection=True;'
+
+stages:
+  - stage: BackendUnitTests
+    displayName: 'Backend Unit Tests (xUnit + Moq)'
+    jobs:
+      - job: UnitTests
+        steps:
+          - task: UseDotNet@2
+            inputs: { version: '8.0.x' }
+          - script: dotnet test backend/LeatherPOS.UnitTests --logger trx --collect "Code Coverage"
+            displayName: 'dotnet test - unit'
+
+  - stage: DatabaseTests
+    displayName: 'Stored Procedure Tests (tSQLt)'
+    dependsOn: BackendUnitTests
+    jobs:
+      - job: TSqltTests
+        steps:
+          - script: |
+              sqlcmd -S (local)\SQLEXPRESS -i database\01_schema_phase1.sql
+              sqlcmd -S (local)\SQLEXPRESS -i database\02_sp_security.sql
+              sqlcmd -S (local)\SQLEXPRESS -i database\03_sp_customers.sql
+              sqlcmd -S (local)\SQLEXPRESS -i database\04_sp_items_uom.sql
+              sqlcmd -S (local)\SQLEXPRESS -i database\05_sp_containers.sql
+              sqlcmd -S (local)\SQLEXPRESS -i database\tests\tSQLt_Phase1_GuardTests.sql
+            displayName: 'Deploy schema + SPs + tSQLt tests to TestLeatherPOS'
+          - script: sqlcmd -S (local)\SQLEXPRESS -Q "EXEC tSQLt.RunAll; EXEC tSQLt.XmlResultFormatter" -o results.xml
+            displayName: 'Run tSQLt.RunAll'
+          - task: PublishTestResults@2
+            inputs: { testResultsFormat: 'JUnit', testResultsFiles: 'results.xml' }
+
+  - stage: ApiIntegrationTests
+    displayName: 'API Integration Tests (WebApplicationFactory)'
+    dependsOn: DatabaseTests
+    jobs:
+      - job: IntegrationTests
+        steps:
+          - task: UseDotNet@2
+            inputs: { version: '8.0.x' }
+          - script: dotnet test backend/LeatherPOS.IntegrationTests --logger trx
+            displayName: 'dotnet test - integration'
+            env:
+              ConnectionStrings__TestLeatherPOS: $(testDbConnectionString)
+
+  - stage: FrontendTests
+    displayName: 'Frontend Tests (Jest + RTL)'
+    dependsOn: BackendUnitTests
+    jobs:
+      - job: JestTests
+        steps:
+          - task: NodeTool@0
+            inputs: { versionSpec: '18.x' }
+          - script: |
+              cd frontend
+              npm ci
+              npm run test:coverage -- --ci
+            displayName: 'npm test'
+
+  - stage: SmokeTests
+    displayName: 'API Smoke Tests (Newman)'
+    dependsOn: ApiIntegrationTests
+    condition: succeeded()
+    jobs:
+      - job: NewmanSmoke
+        steps:
+          - script: npx newman run postman/LeatherPOS-Phase1.postman_collection.json -e postman/staging.postman_environment.json
+            displayName: 'Run Postman smoke collection against staging'
+
+  # E2E runs nightly / pre-merge on a schedule rather than on every commit, per the test strategy.
+  - stage: E2ENightly
+    displayName: 'Playwright E2E (scheduled)'
+    dependsOn: SmokeTests
+    condition: and(succeeded(), eq(variables['Build.Reason'], 'Schedule'))
+    jobs:
+      - job: PlaywrightE2E
+        steps:
+          - task: NodeTool@0
+            inputs: { versionSpec: '18.x' }
+          - script: |
+              cd e2e
+              npm ci
+              npx playwright install --with-deps
+              npx playwright test
+            displayName: 'Run Playwright suite against staging'

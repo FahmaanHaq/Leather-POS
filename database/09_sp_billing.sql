@@ -6,6 +6,7 @@
    TVP types for the line-item and split-payment grids submitted from the
    Billing screen in a single atomic call.
    ------------------------------------------------------------------------- */
+IF TYPE_ID(N'Sales.InvoiceLineType') IS NULL
 CREATE TYPE Sales.InvoiceLineType AS TABLE (
     ItemID          INT,
     UOMID           INT,
@@ -16,6 +17,7 @@ CREATE TYPE Sales.InvoiceLineType AS TABLE (
 GO
 
 -- Flattened: mode-specific columns are NULL unless PaymentMode matches them.
+IF TYPE_ID(N'Sales.PaymentType') IS NULL
 CREATE TYPE Sales.PaymentType AS TABLE (
     PaymentMode     TINYINT,          -- 1=Cash,2=Card,3=Cheque,4=Credit
     Amount          DECIMAL(18,2),
@@ -32,6 +34,7 @@ CREATE TYPE Sales.PaymentType AS TABLE (
 );
 GO
 
+IF TYPE_ID(N'Sales.ReturnLineType') IS NULL
 CREATE TYPE Sales.ReturnLineType AS TABLE (
     InvoiceLineID   INT,
     QuantityToReturn DECIMAL(18,3)
